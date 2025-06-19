@@ -48,6 +48,13 @@ SUPABASE_URL=your_supabase_url_here
 SUPABASE_ANON_KEY=your_supabase_anon_key_here
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
 
+# Supabase Postgres DB Connection (for scripts)
+SUPABASE_DB_HOST=your_db_host_here
+SUPABASE_DB_PORT=5432
+SUPABASE_DB_USER=your_db_user_here
+SUPABASE_DB_PASSWORD=your_db_password_here
+SUPABASE_DB_NAME=your_db_name_here
+
 # Twilio Configuration
 TWILIO_ACCOUNT_SID=your_twilio_account_sid_here
 TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
@@ -64,11 +71,13 @@ LEADERBOARD_BASE_URL=https://your-domain.com/leaderboardz
 2. Run the database schema:
 ```bash
 # Copy the schema from src/database/schema.sql and run it in your database
+npm run db:schema
 ```
 
 3. Initialize with sample data:
 ```bash
 # Copy the data from src/database/init-data.sql and run it in your database
+npm run db:init-data
 ```
 
 This will create:

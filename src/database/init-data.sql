@@ -1,3 +1,12 @@
+-- Truncate tables in reverse order of dependencies
+TRUNCATE TABLE chat_messages CASCADE;
+TRUNCATE TABLE team_scores CASCADE;
+TRUNCATE TABLE players CASCADE;
+TRUNCATE TABLE teams CASCADE;
+TRUNCATE TABLE tournaments CASCADE;
+TRUNCATE TABLE golf_course_holes CASCADE;
+TRUNCATE TABLE golf_courses CASCADE;
+
 -- Insert Lakehouse Golf Resort
 INSERT INTO golf_courses (id, name, location) VALUES 
 ('550e8400-e29b-41d4-a716-446655440000', 'Lakehouse Golf Resort', 'San Marcos, CA');

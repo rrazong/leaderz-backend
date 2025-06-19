@@ -119,8 +119,8 @@ router.post('/tournaments', [
 
     const { name, golfCourseId } = req.body;
     
-    // Generate a 5-character URL-friendly ID
-    const urlId = nanoid(5);
+    // Generate a 6-character URL-friendly ID
+    const urlId = nanoid(6);
     
     const tournament = await DatabaseService.createTournament(name, golfCourseId, urlId);
     

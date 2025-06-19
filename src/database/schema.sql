@@ -1,6 +1,15 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Drop tables if they exist (in reverse order of dependencies)
+DROP TABLE IF EXISTS chat_messages CASCADE;
+DROP TABLE IF EXISTS team_scores CASCADE;
+DROP TABLE IF EXISTS players CASCADE;
+DROP TABLE IF EXISTS teams CASCADE;
+DROP TABLE IF EXISTS tournaments CASCADE;
+DROP TABLE IF EXISTS golf_course_holes CASCADE;
+DROP TABLE IF EXISTS golf_courses CASCADE;
+
 -- Golf Courses table
 CREATE TABLE golf_courses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -23,7 +32,7 @@ CREATE TABLE golf_course_holes (
 -- Tournaments table
 CREATE TABLE tournaments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    url_id VARCHAR(5) UNIQUE NOT NULL,
+    url_id VARCHAR(6) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     golf_course_id UUID NOT NULL REFERENCES golf_courses(id) ON DELETE CASCADE,
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'cancelled')),
