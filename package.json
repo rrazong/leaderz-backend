@@ -5,12 +5,12 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "start": "node --no-deprecation dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only --no-deprecation src/index.ts",
     "test": "jest",
     "test-setup": "ts-node src/test-setup.ts",
     "db:schema": "ts-node scripts/run-schema.ts",
-    "db:init-data": "ts-node scripts/run-init-data.ts",
+    "db:init": "ts-node scripts/run-init-data.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix"
   },
