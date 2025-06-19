@@ -23,6 +23,12 @@ export class WhatsAppHandler {
         return;
       }
 
+      if (!player.team_id) {
+        const team = message;
+        await this.handleTeamJoin(phoneNumber, team);
+        return;
+      }
+
       // Existing player - process their message
       await this.handleExistingPlayer(player, message);
     } catch (error) {
@@ -32,6 +38,10 @@ export class WhatsAppHandler {
   }
 
   private static async handleNewPlayer(phoneNumber: string, message: string): Promise<void> {
+    // Save the player
+    console.log('Creating player', phoneNumber);
+    await DatabaseService.createPlayer(phoneNumber);
+
     const welcomeMessage = `Welcome to the "SD Summer Golf Invitational 2025" tournament! 🏌️‍♂️
 
 What team are you on? Just send me your team name and I'll add you to the leaderboard.`;
@@ -142,7 +152,8 @@ Leaderboard: ${leaderboardUrl}`;
     if (team.current_hole === totalHoles) {
       // Tournament completed
       const position = await DatabaseService.getTeamPosition(tournament.id, team.id);
-      response += `\n\n🎉 Congratulations! You've completed the tournament!\nFinal Score: ${totalScore}\nFinal Position: ${position}${position === 1 ? 'st' : position === 2 ? 'nd' : position === 3 ? 'rd' : 'th'}\n\nLeaderboard: ${leaderboardUrl}`;
+      const place = position === 1 ? '1st' : position === 2 ? '2nd' : position === 3 ? '3rd' : `${position}th`;
+      response += `\n\n🎉 Congratulations! You've completed the tournament!\nFinal Score: ${totalScore}\nCurrent Place: ${place}\n\nLeaderboard: ${leaderboardUrl}`;
     } else {
       response += `\n\nLeaderboard: ${leaderboardUrl}`;
     }

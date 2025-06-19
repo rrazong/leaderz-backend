@@ -157,10 +157,27 @@ export class DatabaseService {
   }
 
   // Player operations
-  static async addPlayerToTeam(teamId: string, phoneNumber: string, name?: string): Promise<Player> {
+  static async createPlayer(phoneNumber: string, name?: string): Promise<Player> {
     const { data, error } = await supabase
       .from('players')
-      .upsert({ team_id: teamId, phone_number: phoneNumber, name })
+      .insert({ phone_number: phoneNumber, name })
+      .select()
+      .single();
+
+    if (error) throw new Error(`Failed to create player: ${error.message}`);
+    return data;
+  }
+
+  static async addPlayerToTeam(teamId: string | undefined, phoneNumber: string, name?: string): Promise<Player> {
+    const { data, error } = await supabase
+      .from('players')
+      .upsert(
+        { team_id: teamId, phone_number: phoneNumber, name },
+        { 
+          onConflict: 'phone_number',
+          ignoreDuplicates: false
+        }
+      )
       .select()
       .single();
 
@@ -171,9 +188,8 @@ export class DatabaseService {
   static async getPlayerByPhone(phoneNumber: string): Promise<Player | null> {
     const { data, error } = await supabase
       .from('players')
-      .select('*, teams!inner(*)')
+      .select('*')
       .eq('phone_number', phoneNumber)
-      .eq('teams.is_deleted', false)
       .single();
 
     if (error && error.code !== 'PGRST116') throw new Error(`Failed to get player: ${error.message}`);

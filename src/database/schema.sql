@@ -56,8 +56,8 @@ CREATE TABLE teams (
 -- Players table
 CREATE TABLE players (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
-    phone_number VARCHAR(20) NOT NULL,
+    team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
+    phone_number VARCHAR(20) NOT NULL UNIQUE,
     name VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(phone_number, team_id)

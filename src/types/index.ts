@@ -37,7 +37,7 @@ export interface Team {
 
 export interface Player {
   id: string;
-  team_id: string;
+  team_id?: string;
   phone_number: string;
   name?: string;
   created_at: Date;
