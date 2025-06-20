@@ -1,68 +1,110 @@
 import { ScoreInput } from '../types';
 
-const scoreMap: Record<string, number> = {
-  '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
-  'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
-  'hole in one': 1, 'ace': 1,
-  'albatross': -3,
-  'eagle': -2,
-  'birdie': -1,
-  'par': 0, '0': 0,
-  'bogey': 1, '+1': 1,
-  'double bogey': 2, '+2': 2, 'double': 2,
-  'triple bogey': 3, '+3': 3, 'triple': 3,
-  'quad': 4, '+4': 4, 'quadruple': 4, 'quadruple bogey': 4,
-  'double par': 8, 'max': 8
+const numberWords: Record<string, number> = {
+  'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+  'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+};
+
+const relativeScores: Record<string, number> = {
+  // 1 stroke
+  'ace': 1, 'hole in one': 1, 'hole-in-one': 1,
+  
+  // 1 under par
+  'birdie': -1, '🐦': -1, '🐧': -1, '🐤': -1, '🕊️🦆': -1, '🐥': -1, '🐣': -1, '🐦‍⬛': -1, '🦜': -1,
+  
+  // 2 under par
+  'eagle': -2, '🦅': -2,
+  
+  // 3 under par
+  'albatross': -3, 'albatros': -3,
+  
+  // par
+  'par': 0, 'zero': 0,
+  
+  // 1 over par
+  'bogey': 1,
+  
+  // 2 over par
+  'double': 2, 'double bogey': 2, 'double-bogey': 2,
+  
+  // 3 over par
+  'triple': 3, 'triple bogey': 3, 'triple-bogey': 3,
+  
+  // 4 over par
+  'quad': 4, 'quadruple': 4, 'quadruple-bogey': 4,
+  
+  // 8 strokes
+  'snowman': 8, '☃️': 8, '⛄️': 8, '⛇': 8, '☃': 8, '⛄︎': 8
 };
 
 export function parseScore(input: string, par: number): ScoreInput | null {
   const normalizedInput = input.toLowerCase().trim();
   
-  // Check for exact matches
-  if (scoreMap[normalizedInput] !== undefined) {
-    const relativeScore = scoreMap[normalizedInput];
-    const strokes = relativeScore >= 0 ? par + relativeScore : par + relativeScore;
-    
+  // Check for exact integer (including 0)
+  const integerMatch = normalizedInput.match(/^(\d+)$/);
+  if (integerMatch && integerMatch[1]) {
+    const strokes = parseInt(integerMatch[1], 10);
+    if (strokes >= 0 && strokes <= 20) {
+      return {
+        raw: input,
+        strokes,
+        description: getScoreDescription(strokes, par)
+      };
+    }
+  }
+  
+  // Check for number words
+  if (numberWords[normalizedInput] !== undefined) {
+    const strokes = numberWords[normalizedInput];
     return {
       raw: input,
-      strokes: Math.max(1, strokes), // Minimum 1 stroke
+      strokes,
       description: getScoreDescription(strokes, par)
     };
   }
   
-  // Check for "bogey on X" format
-  const bogeyMatch = normalizedInput.match(/^(bogey|double bogey|triple bogey|quadruple bogey)\s+on\s+(\d+)$/);
-  if (bogeyMatch) {
-    const scoreType = bogeyMatch[1];
-    const holeNumber = bogeyMatch[2];
-    if (scoreType && holeNumber && scoreType in scoreMap) {
-      const relativeScore = scoreMap[scoreType];
-      if (relativeScore !== undefined) {
-        const strokes = par + relativeScore;
-        
-        return {
-          raw: input,
-          strokes: Math.max(1, strokes),
-          description: `${scoreType} on hole ${holeNumber}`
-        };
-      }
-    }
+  // Check for positive relative score (+2 means 2 over par)
+  const positiveMatch = normalizedInput.match(/^\+(\d+)$/);
+  if (positiveMatch && positiveMatch[1]) {
+    const overPar = parseInt(positiveMatch[1], 10);
+    const strokes = par + overPar;
+    return {
+      raw: input,
+      strokes,
+      description: getScoreDescription(strokes, par)
+    };
   }
   
-  // Check for numeric input
-  const numericMatch = normalizedInput.match(/^(\d+)$/);
-  if (numericMatch) {
-    const matchValue = numericMatch[1];
-    if (matchValue) {
-      const strokes = parseInt(matchValue, 10);
-      if (strokes >= 1 && strokes <= 20) {
-        return {
-          raw: input,
-          strokes,
-          description: getScoreDescription(strokes, par)
-        };
-      }
+  // Check for negative relative score (-1 means 1 under par)
+  const negativeMatch = normalizedInput.match(/^-(\d+)$/);
+  if (negativeMatch && negativeMatch[1]) {
+    const underPar = parseInt(negativeMatch[1], 10);
+    const strokes = par - underPar;
+    return {
+      raw: input,
+      strokes: Math.max(1, strokes), // Minimum 1 stroke
+      description: getScoreDescription(Math.max(1, strokes), par)
+    };
+  }
+  
+  // Check for relative score strings
+  if (relativeScores[normalizedInput] !== undefined) {
+    const relativeScore = relativeScores[normalizedInput];
+    let strokes: number;
+    
+    if (relativeScore >= 0) {
+      // Absolute strokes (like ace=1, snowman=8)
+      strokes = relativeScore;
+    } else {
+      // Relative to par (like birdie=-1, eagle=-2)
+      strokes = par + relativeScore;
     }
+    
+    return {
+      raw: input,
+      strokes: Math.max(1, strokes), // Minimum 1 stroke
+      description: getScoreDescription(Math.max(1, strokes), par)
+    };
   }
   
   return null;
@@ -71,7 +113,7 @@ export function parseScore(input: string, par: number): ScoreInput | null {
 function getScoreDescription(strokes: number, par: number): string {
   const difference = strokes - par;
   
-  if (strokes === 1 && par > 1) return 'hole in one';
+  if (strokes === 1) return 'hole in one';
   if (difference === -3) return 'albatross';
   if (difference === -2) return 'eagle';
   if (difference === -1) return 'birdie';

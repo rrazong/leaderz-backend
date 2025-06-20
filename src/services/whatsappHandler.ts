@@ -147,7 +147,8 @@ Leaderboard: ${leaderboardUrl}`;
     await DatabaseService.updateTeamScore(team.id, totalScore, nextHole);
 
     const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/${tournament.url_id}`;
-    let response = `Got it. Hole #${team.current_hole}, ${scoreInput.strokes} strokes (${scoreInput.description})`;
+    const strokeText = scoreInput.strokes === 1 ? 'stroke' : 'strokes';
+    let response = `Got it. Hole #${team.current_hole}, ${scoreInput.strokes} ${strokeText} (${scoreInput.description})`;
 
     if (team.current_hole === totalHoles) {
       // Tournament completed
