@@ -13,6 +13,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy configuration for rate limiting behind reverse proxies
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 
@@ -20,7 +23,13 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://your-domain.com'] 
-    : ['http://localhost:3000', 'http://localhost:3001'],
+    : [
+        'http://localhost:3000', 
+        'http://localhost:3001', 
+        'http://localhost:5173',
+        'https://d8d9-174-193-130-229.ngrok-free.app',
+        'https://fe93-174-193-130-229.ngrok-free.app'
+      ],
   credentials: true
 }));
 
