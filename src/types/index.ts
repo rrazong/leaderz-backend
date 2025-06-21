@@ -60,11 +60,13 @@ export interface ChatMessage {
 }
 
 export interface LeaderboardEntry {
+  team_id: string;
   team_name: string;
-  current_score: number;
+  total_score: number;
   current_hole: number;
   total_holes: number;
   position: number;
+  scores: { [hole_number: string]: number };
 }
 
 export interface TwilioWebhookBody {

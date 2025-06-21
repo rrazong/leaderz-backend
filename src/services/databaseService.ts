@@ -7,7 +7,8 @@ import {
   TeamScore, 
   ChatMessage, 
   LeaderboardEntry,
-  PaginatedResponse 
+  PaginatedResponse,
+  GolfCourseHole
 } from '../types';
 
 export class DatabaseService {
@@ -51,6 +52,17 @@ export class DatabaseService {
       .order('hole_number');
 
     if (error) throw new Error(`Failed to get golf course holes: ${error.message}`);
+    return data || [];
+  }
+
+  static async getPars(golfCourseId: string): Promise<GolfCourseHole[]> {
+    const { data, error } = await supabase
+      .from('golf_course_holes')
+      .select('*')
+      .eq('golf_course_id', golfCourseId)
+      .order('hole_number');
+
+    if (error) throw new Error(`Failed to get pars: ${error.message}`);
     return data || [];
   }
 
@@ -267,10 +279,11 @@ export class DatabaseService {
     const { data, error } = await supabase
       .from('teams')
       .select(`
+        id,
         name,
         total_score,
         current_hole,
-        team_scores(count)
+        team_scores(hole_number, strokes)
       `)
       .eq('tournament_id', tournamentId)
       .eq('is_deleted', false)
@@ -279,13 +292,25 @@ export class DatabaseService {
 
     if (error) throw new Error(`Failed to get leaderboard: ${error.message}`);
 
-    return (data || []).map((team, index) => ({
-      team_name: team.name,
-      current_score: team.total_score,
-      current_hole: team.current_hole,
-      total_holes: team.team_scores?.[0]?.count || 0,
-      position: index + 1
-    }));
+    return (data || []).map((team, index) => {
+      // Transform team_scores array into object with hole_number as key
+      const scores: { [hole_number: string]: number } = {};
+      if (team.team_scores) {
+        team.team_scores.forEach((score: any) => {
+          scores[score.hole_number] = score.strokes;
+        });
+      }
+
+      return {
+        team_id: team.id,
+        team_name: team.name,
+        total_score: team.total_score,
+        current_hole: team.current_hole,
+        total_holes: team.team_scores?.length || 0,
+        position: index + 1,
+        scores
+      };
+    });
   }
 
   static async getTeamPosition(tournamentId: string, teamId: string): Promise<number> {
