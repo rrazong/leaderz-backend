@@ -1,6 +1,7 @@
 import { TwilioWebhookBody } from '../types';
 import { DatabaseService } from './databaseService';
 import { TwilioService } from './twilioService';
+import { connectionManager } from './connectionManager';
 import { parseScore } from '../utils/scoreParser';
 import { nanoid } from 'nanoid';
 
@@ -146,6 +147,26 @@ Leaderboard: ${leaderboardUrl}`;
     // Update team
     await DatabaseService.updateTeamScore(team.id, totalScore, nextHole);
 
+    // Broadcast leaderboard update to connected clients
+    try {
+      const leaderboard = await DatabaseService.getLeaderboard(tournament.id);
+      const pars = await DatabaseService.getPars(tournament.golf_course_id);
+      
+      // Transform pars from array to object format expected by frontend
+      const parsObject = pars.reduce((acc, hole) => {
+        acc[hole.hole_number] = hole.par;
+        return acc;
+      }, {} as { [hole_number: string]: number });
+
+      connectionManager.broadcastToTournament(tournament.url_id, {
+        type: 'leaderboard',
+        leaderboard,
+        pars: parsObject
+      }, 'leaderboard');
+    } catch (error) {
+      console.error('Error broadcasting leaderboard update:', error);
+    }
+
     const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/${tournament.url_id}`;
     const strokeText = scoreInput.strokes === 1 ? 'stroke' : 'strokes';
     let response = `Got it. Hole #${team.current_hole}, ${scoreInput.strokes} ${strokeText} (${scoreInput.description})`;
@@ -164,7 +185,22 @@ Leaderboard: ${leaderboardUrl}`;
 
   private static async handleChatMessage(player: any, team: any, tournament: any, message: string): Promise<void> {
     // Add chat message to database
-    await DatabaseService.addChatMessage(tournament.id, team.id, message);
+    const chatMessage = await DatabaseService.addChatMessage(tournament.id, team.id, message);
+    
+    // Broadcast chat update to connected clients
+    try {
+      const messageWithTeamName = {
+        ...chatMessage,
+        team_name: team.name
+      };
+      
+      connectionManager.broadcastToTournament(tournament.url_id, {
+        type: 'chat',
+        message: messageWithTeamName
+      }, 'chat');
+    } catch (error) {
+      console.error('Error broadcasting chat update:', error);
+    }
     
     const response = `Message sent to leaderboard chat! 📱\n\nLeaderboard: ${this.LEADERBOARD_BASE_URL}/${tournament.url_id}`;
     await TwilioService.sendMessage(player.phone_number, response);
