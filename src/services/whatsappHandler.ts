@@ -11,6 +11,7 @@ export class WhatsAppHandler {
     const { Body, From } = webhookBody;
     const phoneNumber = TwilioService.formatPhoneNumber(From);
     const message = Body.trim();
+    console.log('Handling message from', phoneNumber, message);
 
     try {
       // Get or create player

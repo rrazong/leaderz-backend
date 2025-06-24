@@ -208,6 +208,7 @@ export class DatabaseService {
   }
 
   static async getPlayerByPhone(phoneNumber: string): Promise<Player | null> {
+    console.log('Getting player by phone number', phoneNumber);
     const { data, error } = await supabase
       .from('players')
       .select('*')
