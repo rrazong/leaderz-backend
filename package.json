@@ -4,6 +4,7 @@
   "description": "Backend for Leaderz golf tournament leaderboard app",
   "main": "dist/index.js",
   "scripts": {
+    "prepare": "node scripts/write-commit-hash.js",
     "build": "tsc",
     "start": "node --no-deprecation dist/index.js",
     "dev": "tsx watch --no-deprecation src/index.ts",
