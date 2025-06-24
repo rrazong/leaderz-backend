@@ -1,6 +1,7 @@
 import { TwilioWebhookBody } from '../types/index';
 import { DatabaseService } from './databaseService';
 import { TwilioService } from './twilioService';
+import { EventService } from './eventService';
 import { parseScore } from '../utils/scoreParser';
 
 export class WhatsAppHandler {
@@ -147,6 +148,10 @@ Leaderboard: ${leaderboardUrl}`;
     // Update team
     await DatabaseService.updateTeamScore(team.id, totalScore, nextHole);
 
+    // Broadcast leaderboard update
+    await EventService.broadcastLeaderboardUpdate(tournament.tournament_number);
+    await EventService.broadcastTeamScoreUpdate(tournament.tournament_number, team.id);
+
     const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/${tournament.tournament_number}`;
     const strokeText = scoreInput.strokes === 1 ? 'stroke' : 'strokes';
     let response = `Got it. Hole #${team.current_hole}, ${scoreInput.strokes} ${strokeText} (${scoreInput.description})`;
@@ -166,6 +171,9 @@ Leaderboard: ${leaderboardUrl}`;
   private static async handleChatMessage(player: any, team: any, tournament: any, message: string): Promise<void> {
     // Add chat message to database
     const chatMessage = await DatabaseService.addChatMessage(tournament.id, team.id, message);
+    
+    // Broadcast chat update
+    await EventService.broadcastChatUpdate(tournament.tournament_number, chatMessage);
     
     const response = `Message sent to leaderboard chat! 📱\n\nLeaderboard: ${this.LEADERBOARD_BASE_URL}/${tournament.tournament_number}`;
     await TwilioService.sendMessage(player.phone_number, response);

@@ -21,14 +21,6 @@ app.use(helmet());
 
 // CORS configuration
 const productionOrigins = [
-  'https://leaderz-frontend.vercel.app',
-  'https://leaderz-frontend-git-main.vercel.app',
-  'https://leaderz-frontend-git-develop.vercel.app',
-  'https://leaderz.vercel.app',
-  'https://leaderz-git-main.vercel.app',
-  'https://leaderz-git-develop.vercel.app',
-  // Allow any Vercel preview deployments
-  /^https:\/\/.*\.vercel\.app$/,
   // Allow custom domain if configured
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
 ];

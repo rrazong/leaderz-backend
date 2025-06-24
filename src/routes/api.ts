@@ -1,6 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { body, query, validationResult } from 'express-validator';
 import { DatabaseService } from '../services/databaseService';
+import { EventService } from '../services/eventService';
+import { sseManager } from '../services/sseManager';
 import fs from 'fs';
 import path from 'path';
 
@@ -40,6 +42,53 @@ router.get('/health', async (req: Request, res: Response) => {
       commit
     });
   }
+});
+
+// SSE endpoints for real-time updates
+router.get('/leaderboard/:tournamentNumber/stream', (req: Request, res: Response) => {
+  const { tournamentNumber } = req.params;
+  
+  if (!tournamentNumber) {
+    return res.status(400).json({ error: 'Tournament number is required' });
+  }
+  
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Cache-Control'
+  });
+
+  sseManager.addClient(res, tournamentNumber, 'leaderboard');
+  
+  // Send initial connection message
+  res.write(`data: ${JSON.stringify({ type: 'connected', tournamentNumber })}\n\n`);
+  
+  return;
+});
+
+router.get('/chat/:tournamentNumber/stream', (req: Request, res: Response) => {
+  const { tournamentNumber } = req.params;
+  
+  if (!tournamentNumber) {
+    return res.status(400).json({ error: 'Tournament number is required' });
+  }
+  
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Cache-Control'
+  });
+
+  sseManager.addClient(res, tournamentNumber, 'chat');
+  
+  // Send initial connection message
+  res.write(`data: ${JSON.stringify({ type: 'connected', tournamentNumber })}\n\n`);
+  
+  return;
 });
 
 // Get leaderboard for a tournament
@@ -110,6 +159,41 @@ router.get('/chat/:tournamentNumber', [
     return res.json(chatMessages);
   } catch (error) {
     console.error('Error getting chat messages:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add chat message for a tournament
+router.post('/chat/:tournamentNumber', [
+  body('teamId').notEmpty().withMessage('Team ID is required'),
+  body('message').notEmpty().withMessage('Message is required')
+], async (req: Request, res: Response) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { tournamentNumber } = req.params;
+    const { teamId, message } = req.body;
+    
+    if (!tournamentNumber) {
+      return res.status(400).json({ error: 'Tournament number is required' });
+    }
+    
+    const tournament = await DatabaseService.getTournamentByNumber(parseInt(tournamentNumber));
+    if (!tournament) {
+      return res.status(404).json({ error: 'Tournament not found' });
+    }
+
+    const chatMessage = await DatabaseService.addChatMessage(tournament.id, teamId, message);
+    
+    // Broadcast chat update
+    await EventService.broadcastChatUpdate(tournament.tournament_number, chatMessage);
+    
+    return res.status(201).json(chatMessage);
+  } catch (error) {
+    console.error('Error adding chat message:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

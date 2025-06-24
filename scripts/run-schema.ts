@@ -6,23 +6,24 @@ import path from 'path';
 dotenv.config();
 
 const {
-  SUPABASE_DB_HOST,
-  SUPABASE_DB_PORT,
-  SUPABASE_DB_USER,
-  SUPABASE_DB_PASSWORD,
-  SUPABASE_DB_NAME
+  PGHOST,
+  PGPORT,
+  PGUSER,
+  PGPASSWORD,
+  PGDATABASE
 } = process.env;
 
-if (!SUPABASE_DB_HOST || !SUPABASE_DB_PORT || !SUPABASE_DB_USER || !SUPABASE_DB_PASSWORD || !SUPABASE_DB_NAME) {
+if (!PGHOST || !PGPORT || !PGUSER || !PGPASSWORD || !PGDATABASE) {
   throw new Error('Missing one or more required database environment variables.');
 }
 
 const client = new Client({
-  host: SUPABASE_DB_HOST,
-  port: parseInt(SUPABASE_DB_PORT, 10),
-  user: SUPABASE_DB_USER,
-  password: SUPABASE_DB_PASSWORD,
-  database: SUPABASE_DB_NAME,
+  host: PGHOST,
+  port: parseInt(PGPORT, 10),
+  user: PGUSER,
+  password: PGPASSWORD,
+  database: PGDATABASE,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
 async function runSchema() {

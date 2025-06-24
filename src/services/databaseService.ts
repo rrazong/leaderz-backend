@@ -1,4 +1,4 @@
-import { supabase } from '../database/connection';
+import pool from '../database/pgPool';
 import { 
   GolfCourse, 
   Tournament, 
@@ -14,333 +14,224 @@ import {
 export class DatabaseService {
   // Test database connection
   static async testConnection(): Promise<void> {
-    const { error } = await supabase
-      .from('tournaments')
-      .select('id')
-      .limit(1);
-
-    if (error) throw new Error(`Database connection failed: ${error.message}`);
+    await pool.query('SELECT 1');
   }
 
   // Golf Course operations
   static async createGolfCourse(name: string, location: string): Promise<GolfCourse> {
-    const { data, error } = await supabase
-      .from('golf_courses')
-      .insert({ name, location })
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to create golf course: ${error.message}`);
-    return data;
+    const { rows } = await pool.query(
+      'INSERT INTO golf_courses (name, location) VALUES ($1, $2) RETURNING *',
+      [name, location]
+    );
+    return rows[0];
   }
 
   static async getGolfCourse(id: string): Promise<GolfCourse | null> {
-    const { data, error } = await supabase
-      .from('golf_courses')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw new Error(`Failed to get golf course: ${error.message}`);
-    return data;
+    const { rows } = await pool.query(
+      'SELECT * FROM golf_courses WHERE id = $1',
+      [id]
+    );
+    return rows[0] || null;
   }
 
   static async deleteGolfCourse(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('golf_courses')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw new Error(`Failed to delete golf course: ${error.message}`);
+    await pool.query('DELETE FROM golf_courses WHERE id = $1', [id]);
   }
 
   static async getGolfCourseHoles(golfCourseId: string): Promise<{ hole_number: number; par: number }[]> {
-    const { data, error } = await supabase
-      .from('golf_course_holes')
-      .select('hole_number, par')
-      .eq('golf_course_id', golfCourseId)
-      .order('hole_number');
-
-    if (error) throw new Error(`Failed to get golf course holes: ${error.message}`);
-    return data || [];
+    const { rows } = await pool.query(
+      'SELECT hole_number, par FROM golf_course_holes WHERE golf_course_id = $1 ORDER BY hole_number',
+      [golfCourseId]
+    );
+    return rows;
   }
 
   static async getPars(golfCourseId: string): Promise<GolfCourseHole[]> {
-    const { data, error } = await supabase
-      .from('golf_course_holes')
-      .select('*')
-      .eq('golf_course_id', golfCourseId)
-      .order('hole_number');
-
-    if (error) throw new Error(`Failed to get pars: ${error.message}`);
-    return data || [];
+    const { rows } = await pool.query(
+      'SELECT * FROM golf_course_holes WHERE golf_course_id = $1 ORDER BY hole_number',
+      [golfCourseId]
+    );
+    return rows;
   }
 
   // Tournament operations
   static async createTournament(name: string, golfCourseId: string): Promise<Tournament> {
-    const { data, error } = await supabase
-      .from('tournaments')
-      .insert({ name, golf_course_id: golfCourseId })
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to create tournament: ${error.message}`);
-    return data;
+    const { rows } = await pool.query(
+      'INSERT INTO tournaments (name, golf_course_id) VALUES ($1, $2) RETURNING *',
+      [name, golfCourseId]
+    );
+    return rows[0];
   }
 
   static async getTournamentByNumber(tournamentNumber: number): Promise<Tournament | null> {
-    const { data, error } = await supabase
-      .from('tournaments')
-      .select('*')
-      .eq('tournament_number', tournamentNumber)
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw new Error(`Failed to get tournament: ${error.message}`);
-    return data;
+    const { rows } = await pool.query(
+      'SELECT * FROM tournaments WHERE tournament_number = $1',
+      [tournamentNumber]
+    );
+    return rows[0] || null;
   }
 
   static async updateTournament(id: string, updates: Partial<Tournament>): Promise<Tournament> {
-    const { data, error } = await supabase
-      .from('tournaments')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to update tournament: ${error.message}`);
-    return data;
+    const fields = Object.keys(updates);
+    const values = Object.values(updates);
+    if (fields.length === 0) throw new Error('No updates provided');
+    const setClause = fields.map((f, i) => `${f} = $${i + 1}`).join(', ');
+    const { rows } = await pool.query(
+      `UPDATE tournaments SET ${setClause} WHERE id = $${fields.length + 1} RETURNING *`,
+      [...values, id]
+    );
+    return rows[0];
   }
 
   static async deleteTournament(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('tournaments')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw new Error(`Failed to delete tournament: ${error.message}`);
+    await pool.query('DELETE FROM tournaments WHERE id = $1', [id]);
   }
 
   // Team operations
   static async createTeam(tournamentId: string, name: string): Promise<Team> {
-    const { data, error } = await supabase
-      .from('teams')
-      .insert({ tournament_id: tournamentId, name })
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to create team: ${error.message}`);
-    return data;
+    const { rows } = await pool.query(
+      'INSERT INTO teams (tournament_id, name) VALUES ($1, $2) RETURNING *',
+      [tournamentId, name]
+    );
+    return rows[0];
   }
 
   static async getTeamByName(tournamentId: string, name: string): Promise<Team | null> {
-    const { data, error } = await supabase
-      .from('teams')
-      .select('*')
-      .eq('tournament_id', tournamentId)
-      .eq('name', name)
-      .eq('is_deleted', false)
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw new Error(`Failed to get team: ${error.message}`);
-    return data;
+    const { rows } = await pool.query(
+      'SELECT * FROM teams WHERE tournament_id = $1 AND name = $2 AND is_deleted = false',
+      [tournamentId, name]
+    );
+    return rows[0] || null;
   }
 
   static async getTeamById(id: string): Promise<Team | null> {
-    const { data, error } = await supabase
-      .from('teams')
-      .select('*')
-      .eq('id', id)
-      .eq('is_deleted', false)
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw new Error(`Failed to get team: ${error.message}`);
-    return data;
+    const { rows } = await pool.query(
+      'SELECT * FROM teams WHERE id = $1 AND is_deleted = false',
+      [id]
+    );
+    return rows[0] || null;
   }
 
   static async deleteTeam(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('teams')
-      .update({ is_deleted: true })
-      .eq('id', id);
-
-    if (error) throw new Error(`Failed to delete team: ${error.message}`);
+    await pool.query('UPDATE teams SET is_deleted = true WHERE id = $1', [id]);
   }
 
   static async updateTeamScore(id: string, totalScore: number, currentHole: number): Promise<Team> {
-    const { data, error } = await supabase
-      .from('teams')
-      .update({ total_score: totalScore, current_hole: currentHole })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to update team score: ${error.message}`);
-    return data;
+    const { rows } = await pool.query(
+      'UPDATE teams SET total_score = $1, current_hole = $2 WHERE id = $3 RETURNING *',
+      [totalScore, currentHole, id]
+    );
+    return rows[0];
   }
 
   // Player operations
   static async createPlayer(phoneNumber: string, name?: string): Promise<Player> {
-    const { data, error } = await supabase
-      .from('players')
-      .insert({ phone_number: phoneNumber, name })
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to create player: ${error.message}`);
-    return data;
+    const { rows } = await pool.query(
+      'INSERT INTO players (phone_number, name) VALUES ($1, $2) ON CONFLICT (phone_number) DO UPDATE SET name = EXCLUDED.name RETURNING *',
+      [phoneNumber, name || null]
+    );
+    return rows[0];
   }
 
   static async addPlayerToTeam(teamId: string | undefined, phoneNumber: string, name?: string): Promise<Player> {
-    const { data, error } = await supabase
-      .from('players')
-      .upsert(
-        { team_id: teamId, phone_number: phoneNumber, name },
-        { 
-          onConflict: 'phone_number',
-          ignoreDuplicates: false
-        }
-      )
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to add player to team: ${error.message}`);
-    return data;
+    const { rows } = await pool.query(
+      'UPDATE players SET team_id = $1, name = COALESCE($3, name) WHERE phone_number = $2 RETURNING *',
+      [teamId, phoneNumber, name || null]
+    );
+    return rows[0];
   }
 
   static async getPlayerByPhone(phoneNumber: string): Promise<Player | null> {
-    console.log('Getting player by phone number', phoneNumber);
-    const { data, error } = await supabase
-      .from('players')
-      .select('*')
-      .eq('phone_number', phoneNumber)
-      .single();
-
-    if (error && error.code !== 'PGRST116') throw new Error(`Failed to get player, phone number ${phoneNumber}: ${error.message}`);
-    return data;
+    const { rows } = await pool.query(
+      'SELECT * FROM players WHERE phone_number = $1',
+      [phoneNumber]
+    );
+    return rows[0] || null;
   }
 
-  // Score operations
+  // Team Score operations
   static async addTeamScore(teamId: string, holeNumber: number, strokes: number): Promise<TeamScore> {
-    const { data, error } = await supabase
-      .from('team_scores')
-      .upsert({ team_id: teamId, hole_number: holeNumber, strokes })
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to add team score: ${error.message}`);
-    return data;
+    const { rows } = await pool.query(
+      'INSERT INTO team_scores (team_id, hole_number, strokes) VALUES ($1, $2, $3) ON CONFLICT (team_id, hole_number) DO UPDATE SET strokes = EXCLUDED.strokes RETURNING *',
+      [teamId, holeNumber, strokes]
+    );
+    return rows[0];
   }
 
   static async getTeamScores(teamId: string): Promise<TeamScore[]> {
-    const { data, error } = await supabase
-      .from('team_scores')
-      .select('*')
-      .eq('team_id', teamId)
-      .order('hole_number');
-
-    if (error) throw new Error(`Failed to get team scores: ${error.message}`);
-    return data || [];
+    const { rows } = await pool.query(
+      'SELECT * FROM team_scores WHERE team_id = $1',
+      [teamId]
+    );
+    return rows;
   }
 
-  // Chat operations
+  // Chat Message operations
   static async addChatMessage(tournamentId: string, teamId: string, message: string): Promise<ChatMessage> {
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .insert({ tournament_id: tournamentId, team_id: teamId, message })
-      .select()
-      .single();
-
-    if (error) throw new Error(`Failed to add chat message: ${error.message}`);
-    return data;
+    const { rows } = await pool.query(
+      'INSERT INTO chat_messages (tournament_id, team_id, message) VALUES ($1, $2, $3) RETURNING *',
+      [tournamentId, teamId, message]
+    );
+    return rows[0];
   }
 
   static async getChatMessages(tournamentId: string, page: number = 1, limit: number = 20): Promise<PaginatedResponse<ChatMessage & { team_name: string }>> {
     const offset = (page - 1) * limit;
-
-    const { data, error, count } = await supabase
-      .from('chat_messages')
-      .select(`
-        *,
-        teams!inner(name)
-      `, { count: 'exact' })
-      .eq('tournament_id', tournamentId)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (error) throw new Error(`Failed to get chat messages: ${error.message}`);
-
-    const messages = data?.map(msg => ({
-      ...msg,
-      team_name: msg.teams.name
-    })) || [];
-
+    const { rows } = await pool.query(
+      `SELECT cm.*, t.name as team_name
+       FROM chat_messages cm
+       JOIN teams t ON cm.team_id = t.id
+       WHERE cm.tournament_id = $1
+       ORDER BY cm.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [tournamentId, limit, offset]
+    );
+    const countResult = await pool.query(
+      'SELECT COUNT(*) FROM chat_messages WHERE tournament_id = $1',
+      [tournamentId]
+    );
+    const total = Number(countResult.rows[0].count);
     return {
-      data: messages,
+      data: rows,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit)
+        total,
+        totalPages: Math.ceil(total / limit)
       }
     };
   }
 
-  // Leaderboard operations
+  // Leaderboard
   static async getLeaderboard(tournamentId: string): Promise<LeaderboardEntry[]> {
-    const { data, error } = await supabase
-      .from('teams')
-      .select(`
-        id,
-        name,
-        total_score,
-        current_hole,
-        team_scores(hole_number, strokes)
-      `)
-      .eq('tournament_id', tournamentId)
-      .eq('is_deleted', false)
-      .order('total_score', { ascending: true })
-      .order('current_hole', { ascending: false });
-
-    if (error) throw new Error(`Failed to get leaderboard: ${error.message}`);
-
-    return (data || []).map((team, index) => {
-      // Transform team_scores array into object with hole_number as key
-      const scores: { [hole_number: string]: number } = {};
-      if (team.team_scores) {
-        team.team_scores.forEach((score: any) => {
-          scores[score.hole_number] = score.strokes;
-        });
-      }
-
-      return {
-        team_id: team.id,
-        team_name: team.name,
-        total_score: team.total_score,
-        current_hole: team.current_hole,
-        total_holes: team.team_scores?.length || 0,
-        position: index + 1,
-        scores
-      };
-    });
+    const { rows } = await pool.query(
+      `SELECT
+        t.id as team_id,
+        t.name as team_name,
+        t.total_score,
+        t.current_hole,
+        COUNT(ts.hole_number) as total_holes,
+        RANK() OVER (ORDER BY t.total_score ASC) as position,
+        json_object_agg(ts.hole_number, ts.strokes) as scores
+      FROM teams t
+      LEFT JOIN team_scores ts ON t.id = ts.team_id
+      WHERE t.tournament_id = $1 AND t.is_deleted = false
+      GROUP BY t.id
+      ORDER BY t.total_score ASC, t.current_hole DESC` ,
+      [tournamentId]
+    );
+    return rows;
   }
 
   static async getTeamPosition(tournamentId: string, teamId: string): Promise<number> {
-    const { data, error } = await supabase
-      .from('teams')
-      .select('id, total_score, current_hole')
-      .eq('tournament_id', tournamentId)
-      .eq('is_deleted', false)
-      .order('total_score', { ascending: true })
-      .order('current_hole', { ascending: false });
-
-    if (error) throw new Error(`Failed to get team position: ${error.message}`);
-
-    const team = data?.find(t => t.id === teamId);
-    if (!team) return 0;
-
-    return data?.findIndex(t => 
-      t.total_score < team.total_score || 
-      (t.total_score === team.total_score && t.current_hole > team.current_hole)
-    ) + 1 || 0;
+    const { rows } = await pool.query(
+      `SELECT position FROM (
+        SELECT t.id, RANK() OVER (ORDER BY t.total_score ASC) as position
+        FROM teams t
+        WHERE t.tournament_id = $1 AND t.is_deleted = false
+      ) ranked WHERE id = $2`,
+      [tournamentId, teamId]
+    );
+    return rows[0]?.position || null;
   }
 } 

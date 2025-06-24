@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Backend for Leaderz golf tournament leaderboard app",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "prepare": "node scripts/write-commit-hash.js",
     "build": "tsc",
@@ -13,8 +16,7 @@
     "db:schema": "tsx scripts/run-schema.ts",
     "db:init": "tsx scripts/run-init-data.ts",
     "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
-    "vercel-build": "echo 'Vercel handles TypeScript compilation'"
+    "lint:fix": "eslint src/**/*.ts --fix"
   },
   "keywords": [
     "golf",
@@ -26,8 +28,6 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@supabase/supabase-js": "^2.38.4",
-    "@vercel/node": "^3.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
@@ -42,7 +42,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.8",
-    "@types/node": "^20.10.0",
+    "@types/node": "^22.0.0",
     "@types/pg": "^8.10.9",
     "@typescript-eslint/eslint-plugin": "^6.13.1",
     "@typescript-eslint/parser": "^6.13.1",
