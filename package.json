@@ -8,7 +8,7 @@
   },
   "scripts": {
     "prepare": "node scripts/write-commit-hash.js",
-    "build": "tsc",
+    "build": "tsc && cp -r scripts dist/",
     "start": "node --no-deprecation dist/index.js",
     "dev": "tsx watch --no-deprecation src/index.ts",
     "test": "jest",
