@@ -215,7 +215,7 @@ export class DatabaseService {
       .eq('phone_number', phoneNumber)
       .single();
 
-    if (error && error.code !== 'PGRST116') throw new Error(`Failed to get player: ${error.message}`);
+    if (error && error.code !== 'PGRST116') throw new Error(`Failed to get player of phone number ${phoneNumber}: ${error.message}`);
     return data;
   }
 
