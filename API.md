@@ -67,12 +67,12 @@ Manually add a player to a team.
 ### Leaderboard & Chat
 
 #### Get Leaderboard
-**GET** `/api/leaderboard/:tournamentId`
+**GET** `/api/leaderboard/:tournamentNumber`
 
 Get the current leaderboard for a tournament.
 
 **Parameters:**
-- `tournamentId` (string) - Tournament URL ID (e.g., "SD2025")
+- `tournamentNumber` (number) - Tournament number (e.g., 1000, 1001)
 
 **Response:**
 ```json
@@ -80,7 +80,7 @@ Get the current leaderboard for a tournament.
   "tournament": {
     "id": "660e8400-e29b-41d4-a716-446655440001",
     "name": "SD Summer Golf Invitational 2025",
-    "url_id": "SD2025",
+    "tournament_number": 1000,
     "status": "active"
   },
   "leaderboard": [
@@ -98,17 +98,37 @@ Get the current leaderboard for a tournament.
       "total_holes": 15,
       "position": 2
     }
-  ]
+  ],
+  "pars": {
+    "1": 4,
+    "2": 3,
+    "3": 4,
+    "4": 5,
+    "5": 4,
+    "6": 3,
+    "7": 4,
+    "8": 4,
+    "9": 5,
+    "10": 4,
+    "11": 3,
+    "12": 4,
+    "13": 5,
+    "14": 4,
+    "15": 3,
+    "16": 4,
+    "17": 4,
+    "18": 5
+  }
 }
 ```
 
 #### Get Chat Messages
-**GET** `/api/chat/:tournamentId`
+**GET** `/api/chat/:tournamentNumber`
 
 Get paginated chat messages for a tournament.
 
 **Parameters:**
-- `tournamentId` (string) - Tournament URL ID
+- `tournamentNumber` (number) - Tournament number
 - `page` (number, optional) - Page number (default: 1)
 - `limit` (number, optional) - Messages per page (default: 20, max: 100)
 
@@ -135,12 +155,12 @@ Get paginated chat messages for a tournament.
 ```
 
 #### Server-Sent Events
-**GET** `/api/events/:tournamentId`
+**GET** `/api/events/:tournamentNumber`
 
 Real-time updates for tournament events.
 
 **Parameters:**
-- `tournamentId` (string) - Tournament URL ID
+- `tournamentNumber` (number) - Tournament number
 
 **Response:** Server-Sent Events stream
 
@@ -206,7 +226,7 @@ Create a new tournament.
 ```json
 {
   "id": "aa0e8400-e29b-41d4-a716-446655440005",
-  "url_id": "Spr25",
+  "tournament_number": 1000,
   "name": "Spring Championship 2025",
   "golf_course_id": "990e8400-e29b-41d4-a716-446655440004",
   "status": "active",
@@ -216,18 +236,18 @@ Create a new tournament.
 ```
 
 #### Get Tournament
-**GET** `/api/tournaments/:urlId`
+**GET** `/api/tournaments/:tournamentNumber`
 
-Get tournament details by URL ID.
+Get tournament details by tournament number.
 
 **Parameters:**
-- `urlId` (string) - Tournament URL ID
+- `tournamentNumber` (number) - Tournament number
 
 **Response:**
 ```json
 {
   "id": "aa0e8400-e29b-41d4-a716-446655440005",
-  "url_id": "Spr25",
+  "tournament_number": 1000,
   "name": "Spring Championship 2025",
   "golf_course_id": "990e8400-e29b-41d4-a716-446655440004",
   "status": "active",
@@ -256,7 +276,7 @@ Update tournament details.
 ```json
 {
   "id": "aa0e8400-e29b-41d4-a716-446655440005",
-  "url_id": "Spr25",
+  "tournament_number": 1000,
   "name": "Updated Tournament Name",
   "golf_course_id": "990e8400-e29b-41d4-a716-446655440004",
   "status": "completed",
@@ -312,6 +332,10 @@ All endpoints may return the following error responses:
 ## Rate Limiting
 
 API endpoints are rate-limited to 100 requests per 15 minutes per IP address.
+
+## Tournament Numbers
+
+Tournament numbers are auto-incrementing integers starting from 1000. Each new tournament gets the next available number in sequence.
 
 ## WhatsApp Message Formats
 

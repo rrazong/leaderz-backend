@@ -1,31 +1,53 @@
 import { Router, Request, Response } from 'express';
 import { body, query, validationResult } from 'express-validator';
 import { DatabaseService } from '../services/databaseService';
-import { connectionManager } from '../services/connectionManager';
-import { nanoid } from 'nanoid';
 
 const router = Router();
 
-// Get leaderboard for a tournament
-router.get('/leaderboard/:tournamentId', async (req: Request, res: Response) => {
+// Health check endpoint
+router.get('/health', async (req: Request, res: Response) => {
   try {
-    const { tournamentId } = req.params;
+    // Test database connection
+    await DatabaseService.testConnection();
     
-    if (!tournamentId) {
-      return res.status(400).json({ error: 'Tournament ID is required' });
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      database: 'connected'
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(503).json({ 
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      database: 'disconnected',
+      error: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Database connection failed'
+    });
+  }
+});
+
+// Get leaderboard for a tournament
+router.get('/leaderboard/:tournamentNumber', async (req: Request, res: Response) => {
+  try {
+    const { tournamentNumber } = req.params;
+    
+    if (!tournamentNumber) {
+      return res.status(400).json({ error: 'Tournament number is required' });
     }
     
-    const tournament = await DatabaseService.getTournamentByUrlId(tournamentId);
+    const tournament = await DatabaseService.getTournamentByNumber(parseInt(tournamentNumber));
     if (!tournament) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
 
     const leaderboard = await DatabaseService.getLeaderboard(tournament.id);
-    const pars = await DatabaseService.getPars(tournament.golf_course_id);
+    const parsArray = await DatabaseService.getPars(tournament.golf_course_id);
     
-    // Transform pars from array to object format expected by frontend
-    const parsObject = pars.reduce((acc, hole) => {
-      acc[hole.hole_number] = hole.par;
+    // Transform pars array into object format expected by frontend
+    const pars = parsArray.reduce((acc, hole) => {
+      acc[hole.hole_number.toString()] = hole.par;
       return acc;
     }, {} as { [hole_number: string]: number });
     
@@ -33,11 +55,11 @@ router.get('/leaderboard/:tournamentId', async (req: Request, res: Response) => 
       tournament: {
         id: tournament.id,
         name: tournament.name,
-        url_id: tournament.url_id,
+        tournament_number: tournament.tournament_number,
         status: tournament.status
       },
       leaderboard,
-      pars: parsObject
+      pars
     });
   } catch (error) {
     console.error('Error getting leaderboard:', error);
@@ -46,7 +68,7 @@ router.get('/leaderboard/:tournamentId', async (req: Request, res: Response) => 
 });
 
 // Get paginated chat messages for a tournament
-router.get('/chat/:tournamentId', [
+router.get('/chat/:tournamentNumber', [
   query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
   query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100')
 ], async (req: Request, res: Response) => {
@@ -56,15 +78,15 @@ router.get('/chat/:tournamentId', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { tournamentId } = req.params;
-    if (!tournamentId) {
-      return res.status(400).json({ error: 'Tournament ID is required' });
+    const { tournamentNumber } = req.params;
+    if (!tournamentNumber) {
+      return res.status(400).json({ error: 'Tournament number is required' });
     }
     
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     
-    const tournament = await DatabaseService.getTournamentByUrlId(tournamentId);
+    const tournament = await DatabaseService.getTournamentByNumber(parseInt(tournamentNumber));
     if (!tournament) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
@@ -76,40 +98,6 @@ router.get('/chat/:tournamentId', [
     console.error('Error getting chat messages:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
-});
-
-// Server-Sent Events for real-time chat updates
-router.get('/chat/events/:tournamentId', (req: Request, res: Response) => {
-  const { tournamentId } = req.params;
-  
-  if (!tournamentId) {
-    return res.status(400).json({ error: 'Tournament ID is required' });
-  }
-
-  // Set headers for SSE
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Cache-Control'
-  });
-
-  // Add connection to manager
-  connectionManager.addConnection(tournamentId, res, 'chat');
-
-  // Send initial connection message
-  res.write(`data: ${JSON.stringify({ type: 'connected', tournamentId })}\n\n`);
-
-  // Keep connection alive with periodic pings
-  const interval = setInterval(() => {
-    res.write(`data: ${JSON.stringify({ type: 'ping' })}\n\n`);
-  }, 30000);
-
-  // Clean up on client disconnect
-  req.on('close', () => {
-    clearInterval(interval);
-  });
 });
 
 // Golf Course routes
@@ -162,10 +150,7 @@ router.post('/tournaments', [
 
     const { name, golfCourseId } = req.body;
     
-    // Generate a 6-character URL-friendly ID
-    const urlId = nanoid(6);
-    
-    const tournament = await DatabaseService.createTournament(name, golfCourseId, urlId);
+    const tournament = await DatabaseService.createTournament(name, golfCourseId);
     
     return res.status(201).json(tournament);
   } catch (error) {
@@ -174,14 +159,14 @@ router.post('/tournaments', [
   }
 });
 
-router.get('/tournaments/:urlId', async (req: Request, res: Response) => {
+router.get('/tournaments/:tournamentNumber', async (req: Request, res: Response) => {
   try {
-    const { urlId } = req.params;
-    if (!urlId) {
-      return res.status(400).json({ error: 'Tournament URL ID is required' });
+    const { tournamentNumber } = req.params;
+    if (!tournamentNumber) {
+      return res.status(400).json({ error: 'Tournament number is required' });
     }
     
-    const tournament = await DatabaseService.getTournamentByUrlId(urlId);
+    const tournament = await DatabaseService.getTournamentByNumber(parseInt(tournamentNumber));
     
     if (!tournament) {
       return res.status(404).json({ error: 'Tournament not found' });
@@ -232,67 +217,6 @@ router.delete('/tournaments/:id', async (req: Request, res: Response) => {
     return res.status(204).send();
   } catch (error) {
     console.error('Error deleting tournament:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Server-Sent Events for real-time leaderboard updates
-router.get('/events/:tournamentId', (req: Request, res: Response) => {
-  const { tournamentId } = req.params;
-  
-  if (!tournamentId) {
-    return res.status(400).json({ error: 'Tournament ID is required' });
-  }
-
-  // Set headers for SSE
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Cache-Control'
-  });
-
-  // Add connection to manager
-  connectionManager.addConnection(tournamentId, res, 'leaderboard');
-
-  // Send initial connection message
-  res.write(`data: ${JSON.stringify({ type: 'connected', tournamentId })}\n\n`);
-
-  // Keep connection alive with periodic pings
-  const interval = setInterval(() => {
-    res.write(`data: ${JSON.stringify({ type: 'ping' })}\n\n`);
-  }, 30000);
-
-  // Clean up on client disconnect
-  req.on('close', () => {
-    clearInterval(interval);
-  });
-});
-
-// Test endpoint to manually trigger broadcasts (for debugging)
-router.post('/test-broadcast/:tournamentId', async (req: Request, res: Response) => {
-  try {
-    const { tournamentId } = req.params;
-    const { type, data } = req.body;
-
-    if (!tournamentId) {
-      return res.status(400).json({ error: 'Tournament ID is required' });
-    }
-
-    if (!type || !['leaderboard', 'chat'].includes(type)) {
-      return res.status(400).json({ error: 'Type must be "leaderboard" or "chat"' });
-    }
-
-    connectionManager.broadcastToTournament(tournamentId, data, type as 'leaderboard' | 'chat');
-    
-    return res.json({ 
-      message: `Broadcast sent to ${connectionManager.getConnectionCount(tournamentId, type as 'leaderboard' | 'chat')} connections`,
-      type,
-      tournamentId
-    });
-  } catch (error) {
-    console.error('Error in test broadcast:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

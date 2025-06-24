@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { WhatsAppHandler } from '../services/whatsappHandler';
-import { TwilioWebhookBody } from '../types';
+import { TwilioWebhookBody } from '../types/index';
 
 const router = Router();
 

@@ -9,9 +9,19 @@ import {
   LeaderboardEntry,
   PaginatedResponse,
   GolfCourseHole
-} from '../types';
+} from '../types/index';
 
 export class DatabaseService {
+  // Test database connection
+  static async testConnection(): Promise<void> {
+    const { error } = await supabase
+      .from('tournaments')
+      .select('id')
+      .limit(1);
+
+    if (error) throw new Error(`Database connection failed: ${error.message}`);
+  }
+
   // Golf Course operations
   static async createGolfCourse(name: string, location: string): Promise<GolfCourse> {
     const { data, error } = await supabase
@@ -67,10 +77,10 @@ export class DatabaseService {
   }
 
   // Tournament operations
-  static async createTournament(name: string, golfCourseId: string, urlId: string): Promise<Tournament> {
+  static async createTournament(name: string, golfCourseId: string): Promise<Tournament> {
     const { data, error } = await supabase
       .from('tournaments')
-      .insert({ name, golf_course_id: golfCourseId, url_id: urlId })
+      .insert({ name, golf_course_id: golfCourseId })
       .select()
       .single();
 
@@ -78,11 +88,11 @@ export class DatabaseService {
     return data;
   }
 
-  static async getTournamentByUrlId(urlId: string): Promise<Tournament | null> {
+  static async getTournamentByNumber(tournamentNumber: number): Promise<Tournament | null> {
     const { data, error } = await supabase
       .from('tournaments')
       .select('*')
-      .eq('url_id', urlId)
+      .eq('tournament_number', tournamentNumber)
       .single();
 
     if (error && error.code !== 'PGRST116') throw new Error(`Failed to get tournament: ${error.message}`);

@@ -23,16 +23,21 @@ async function testSetup() {
   console.log('\n🏌️ Testing Database Connection:');
   try {
     // Try to get the default tournament
-    const tournament = await DatabaseService.getTournamentByUrlId('SD2025');
+    const tournament = await DatabaseService.getTournamentByNumber(1000);
     if (tournament) {
       console.log('✅ Database connection successful');
-      console.log(`✅ Found tournament: ${tournament.name}`);
+      console.log(`✅ Found tournament: ${tournament.name} (Tournament #${tournament.tournament_number})`);
       
       // Test getting golf course holes
       const holes = await DatabaseService.getGolfCourseHoles(tournament.golf_course_id);
       console.log(`✅ Found ${holes.length} holes for the golf course`);
+      
+      // Test getting pars
+      const pars = await DatabaseService.getPars(tournament.golf_course_id);
+      console.log(`✅ Found ${pars.length} par values for the golf course`);
     } else {
       console.log('⚠️  Tournament not found - make sure to run the database initialization scripts');
+      console.log('   Expected tournament number: 1000');
     }
   } catch (error) {
     console.log('❌ Database connection failed:', error);
@@ -43,7 +48,7 @@ async function testSetup() {
 }
 
 // Run the test if this file is executed directly
-if (require.main === module) {
+if (process.argv[1] && process.argv[1].endsWith('test-setup.ts')) {
   testSetup().catch(console.error);
 }
 

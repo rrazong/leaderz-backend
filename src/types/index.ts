@@ -16,7 +16,7 @@ export interface GolfCourseHole {
 
 export interface Tournament {
   id: string;
-  url_id: string;
+  tournament_number: number;
   name: string;
   golf_course_id: string;
   status: 'active' | 'completed' | 'cancelled';

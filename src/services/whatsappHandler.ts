@@ -1,12 +1,10 @@
-import { TwilioWebhookBody } from '../types';
+import { TwilioWebhookBody } from '../types/index';
 import { DatabaseService } from './databaseService';
 import { TwilioService } from './twilioService';
-import { connectionManager } from './connectionManager';
 import { parseScore } from '../utils/scoreParser';
-import { nanoid } from 'nanoid';
 
 export class WhatsAppHandler {
-  private static readonly DEFAULT_TOURNAMENT_URL_ID = 'SD2025';
+  private static readonly DEFAULT_TOURNAMENT_NUMBER = 1000;
   private static readonly LEADERBOARD_BASE_URL = process.env.LEADERBOARD_BASE_URL || 'https://your-domain.com/leaderboardz';
 
   static async handleMessage(webhookBody: TwilioWebhookBody): Promise<void> {
@@ -51,7 +49,7 @@ What team are you on? Just send me your team name and I'll add you to the leader
   }
 
   private static async handleExistingPlayer(player: any, message: string): Promise<void> {
-    const tournament = await DatabaseService.getTournamentByUrlId(this.DEFAULT_TOURNAMENT_URL_ID);
+    const tournament = await DatabaseService.getTournamentByNumber(this.DEFAULT_TOURNAMENT_NUMBER);
     if (!tournament) {
       throw new Error('Tournament not found');
     }
@@ -79,6 +77,7 @@ What team are you on? Just send me your team name and I'll add you to the leader
     const golfCourseHoles = await DatabaseService.getGolfCourseHoles(tournament.golf_course_id);
     const currentHolePar = golfCourseHoles.find(h => h.hole_number === team.current_hole)?.par;
     
+    console.log('checking if this is a score submission', currentHolePar, message);
     if (currentHolePar && parseScore(message, currentHolePar)) {
       await this.handleScoreSubmission(player, team, tournament, message, currentHolePar);
       return;
@@ -89,7 +88,7 @@ What team are you on? Just send me your team name and I'll add you to the leader
   }
 
   private static async sendHelpMessage(phoneNumber: string, team: any, tournament: any): Promise<void> {
-    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/${tournament.url_id}`;
+    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/${tournament.tournament_number}`;
     
     const helpMessage = `Your team '${team.name}' is on Hole ${team.current_hole}.
 
@@ -147,27 +146,7 @@ Leaderboard: ${leaderboardUrl}`;
     // Update team
     await DatabaseService.updateTeamScore(team.id, totalScore, nextHole);
 
-    // Broadcast leaderboard update to connected clients
-    try {
-      const leaderboard = await DatabaseService.getLeaderboard(tournament.id);
-      const pars = await DatabaseService.getPars(tournament.golf_course_id);
-      
-      // Transform pars from array to object format expected by frontend
-      const parsObject = pars.reduce((acc, hole) => {
-        acc[hole.hole_number] = hole.par;
-        return acc;
-      }, {} as { [hole_number: string]: number });
-
-      connectionManager.broadcastToTournament(tournament.url_id, {
-        type: 'leaderboard',
-        leaderboard,
-        pars: parsObject
-      }, 'leaderboard');
-    } catch (error) {
-      console.error('Error broadcasting leaderboard update:', error);
-    }
-
-    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/${tournament.url_id}`;
+    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/${tournament.tournament_number}`;
     const strokeText = scoreInput.strokes === 1 ? 'stroke' : 'strokes';
     let response = `Got it. Hole #${team.current_hole}, ${scoreInput.strokes} ${strokeText} (${scoreInput.description})`;
 
@@ -187,27 +166,12 @@ Leaderboard: ${leaderboardUrl}`;
     // Add chat message to database
     const chatMessage = await DatabaseService.addChatMessage(tournament.id, team.id, message);
     
-    // Broadcast chat update to connected clients
-    try {
-      const messageWithTeamName = {
-        ...chatMessage,
-        team_name: team.name
-      };
-      
-      connectionManager.broadcastToTournament(tournament.url_id, {
-        type: 'chat',
-        message: messageWithTeamName
-      }, 'chat');
-    } catch (error) {
-      console.error('Error broadcasting chat update:', error);
-    }
-    
-    const response = `Message sent to leaderboard chat! 📱\n\nLeaderboard: ${this.LEADERBOARD_BASE_URL}/${tournament.url_id}`;
+    const response = `Message sent to leaderboard chat! 📱\n\nLeaderboard: ${this.LEADERBOARD_BASE_URL}/${tournament.tournament_number}`;
     await TwilioService.sendMessage(player.phone_number, response);
   }
 
   static async handleTeamJoin(phoneNumber: string, teamName: string): Promise<void> {
-    const tournament = await DatabaseService.getTournamentByUrlId(this.DEFAULT_TOURNAMENT_URL_ID);
+    const tournament = await DatabaseService.getTournamentByNumber(this.DEFAULT_TOURNAMENT_NUMBER);
     if (!tournament) {
       throw new Error('Tournament not found');
     }
@@ -223,7 +187,7 @@ Leaderboard: ${leaderboardUrl}`;
     // Add player to team
     await DatabaseService.addPlayerToTeam(team.id, phoneNumber);
 
-    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/${tournament.url_id}`;
+    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/${tournament.tournament_number}`;
     const response = `Welcome to team '${teamName}'! 🏌️‍♂️
 
 You're now on Hole ${team.current_hole}. Send me your score when you finish each hole.

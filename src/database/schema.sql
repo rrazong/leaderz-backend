@@ -32,13 +32,17 @@ CREATE TABLE golf_course_holes (
 -- Tournaments table
 CREATE TABLE tournaments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    url_id VARCHAR(6) UNIQUE NOT NULL,
+    tournament_number INTEGER UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     golf_course_id UUID NOT NULL REFERENCES golf_courses(id) ON DELETE CASCADE,
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'cancelled')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Create sequence for tournament_number starting at 1000
+CREATE SEQUENCE tournament_number_seq START 1000;
+ALTER TABLE tournaments ALTER COLUMN tournament_number SET DEFAULT nextval('tournament_number_seq');
 
 -- Teams table
 CREATE TABLE teams (

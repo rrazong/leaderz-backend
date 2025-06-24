@@ -35,5 +35,5 @@ INSERT INTO golf_course_holes (golf_course_id, hole_number, par) VALUES
 ('550e8400-e29b-41d4-a716-446655440000', 18, 5);
 
 -- Insert SD Summer Golf Invitational 2025 tournament
-INSERT INTO tournaments (id, url_id, name, golf_course_id) VALUES
-('660e8400-e29b-41d4-a716-446655440001', 'SD2025', 'SD Summer Golf Invitational 2025', '550e8400-e29b-41d4-a716-446655440000'); 
+INSERT INTO tournaments (id, tournament_number, name, golf_course_id) VALUES
+('660e8400-e29b-41d4-a716-446655440001', 1000, 'SD Summer Golf Invitational 2025', '550e8400-e29b-41d4-a716-446655440000'); 

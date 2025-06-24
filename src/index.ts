@@ -20,16 +20,28 @@ app.set('trust proxy', 1);
 app.use(helmet());
 
 // CORS configuration
+const productionOrigins = [
+  'https://leaderz-frontend.vercel.app',
+  'https://leaderz-frontend-git-main.vercel.app',
+  'https://leaderz-frontend-git-develop.vercel.app',
+  'https://leaderz.vercel.app',
+  'https://leaderz-git-main.vercel.app',
+  'https://leaderz-git-develop.vercel.app',
+  // Allow any Vercel preview deployments
+  /^https:\/\/.*\.vercel\.app$/,
+  // Allow custom domain if configured
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
+];
+
+const developmentOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://fe93-174-193-130-229.ngrok-free.app',
+  'https://311b-2603-8001-4f00-a52-8885-d40b-a9fb-bd9d.ngrok-free.app'
+];
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://your-domain.com'] 
-    : [
-        'http://localhost:3000', 
-        'http://localhost:3001', 
-        'http://localhost:5173',
-        'https://d8d9-174-193-130-229.ngrok-free.app',
-        'https://fe93-174-193-130-229.ngrok-free.app'
-      ],
+  origin: process.env.NODE_ENV === 'production' ? productionOrigins : developmentOrigins,
   credentials: true
 }));
 
