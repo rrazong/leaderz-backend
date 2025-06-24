@@ -23,7 +23,7 @@ router.get('/health', async (req: Request, res: Response) => {
     await DatabaseService.testConnection();
     
     res.json({ 
-      status: 'ok', 
+      status: 'OK', 
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development',
       database: 'connected',
