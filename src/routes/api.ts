@@ -10,16 +10,6 @@ const router = Router();
 
 // Health check endpoint
 router.get('/health', async (req: Request, res: Response) => {
-  let commit = null;
-  try {
-    const commitPath = path.join(__dirname, '../../commit.json');
-    if (fs.existsSync(commitPath)) {
-      const commitData = JSON.parse(fs.readFileSync(commitPath, 'utf-8'));
-      commit = commitData.commit;
-    }
-  } catch (e) {
-    // ignore
-  }
   try {
     // Test database connection
     await DatabaseService.testConnection();
@@ -28,8 +18,7 @@ router.get('/health', async (req: Request, res: Response) => {
       status: 'OK', 
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development',
-      database: 'connected',
-      commit
+      database: 'connected'
     });
   } catch (error) {
     console.error('Health check failed:', error);
@@ -38,8 +27,7 @@ router.get('/health', async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'development',
       database: 'disconnected',
-      error: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Database connection failed',
-      commit
+      error: process.env.NODE_ENV === 'development' ? (error as Error).message : 'Database connection failed'
     });
   }
 });
