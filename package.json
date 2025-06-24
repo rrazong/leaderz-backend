@@ -4,7 +4,7 @@
   "description": "Backend for Leaderz golf tournament leaderboard app",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc && cp package.json dist/",
+    "build": "tsc",
     "start": "node --no-deprecation dist/index.js",
     "dev": "tsx watch --no-deprecation src/index.ts",
     "test": "jest",
@@ -13,7 +13,7 @@
     "db:init": "tsx scripts/run-init-data.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "vercel-build": "npm run build"
+    "vercel-build": "echo 'Vercel handles TypeScript compilation'"
   },
   "keywords": [
     "golf",
