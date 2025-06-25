@@ -7,7 +7,7 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "tsc && cp -r scripts dist/",
+    "build": "tsc",
     "start": "node --no-deprecation dist/index.js",
     "dev": "tsx watch --no-deprecation src/index.ts",
     "test": "jest",
