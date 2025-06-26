@@ -57,7 +57,7 @@ TWILIO_PHONE_NUMBER=whatsapp:+14155238886
 
 # Application Configuration
 APP_BASE_URL=https://your-domain.com
-LEADERBOARD_BASE_URL=https://your-domain.com/leaderboardz
+LEADERBOARD_BASE_URL=https://leaderz-frontend-production.up.railway.app
 
 # Frontend URL (for CORS in production)
 FRONTEND_URL=https://your-frontend-domain.com

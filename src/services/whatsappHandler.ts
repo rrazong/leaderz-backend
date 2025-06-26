@@ -6,7 +6,7 @@ import { parseScore } from '../utils/scoreParser';
 
 export class WhatsAppHandler {
   private static readonly DEFAULT_TOURNAMENT_NUMBER = 1000;
-  private static readonly LEADERBOARD_BASE_URL = process.env.LEADERBOARD_BASE_URL || 'https://your-domain.com/leaderboardz';
+  private static readonly LEADERBOARD_BASE_URL = process.env.LEADERBOARD_BASE_URL || 'https://leaderz-frontend-production.up.railway.app';
 
   static async handleMessage(webhookBody: TwilioWebhookBody): Promise<void> {
     const { Body, From } = webhookBody;
@@ -90,7 +90,7 @@ What team are you on? Just send me your team name and I'll add you to the leader
   }
 
   private static async sendHelpMessage(phoneNumber: string, team: any, tournament: any): Promise<void> {
-    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/${tournament.tournament_number}`;
+    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
     
     const helpMessage = `Your team '${team.name}' is on Hole ${team.current_hole}.
 
@@ -152,7 +152,7 @@ Leaderboard: ${leaderboardUrl}`;
     await EventService.broadcastLeaderboardUpdate(tournament.tournament_number);
     await EventService.broadcastTeamScoreUpdate(tournament.tournament_number, team.id);
 
-    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/${tournament.tournament_number}`;
+    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
     const strokeText = scoreInput.strokes === 1 ? 'stroke' : 'strokes';
     let response = `Got it. Hole #${team.current_hole}, ${scoreInput.strokes} ${strokeText} (${scoreInput.description})`;
 
@@ -175,7 +175,7 @@ Leaderboard: ${leaderboardUrl}`;
     // Broadcast chat update
     await EventService.broadcastChatUpdate(tournament.tournament_number, chatMessage);
     
-    const response = `Message sent to leaderboard chat! 📱\n\nLeaderboard: ${this.LEADERBOARD_BASE_URL}/${tournament.tournament_number}`;
+    const response = `Message sent to leaderboard chat! 📱\n\nLeaderboard: ${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
     await TwilioService.sendMessage(player.phone_number, response);
   }
 
@@ -196,7 +196,7 @@ Leaderboard: ${leaderboardUrl}`;
     // Add player to team
     await DatabaseService.addPlayerToTeam(team.id, phoneNumber);
 
-    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/${tournament.tournament_number}`;
+    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
     const response = `Welcome to team '${teamName}'! 🏌️‍♂️
 
 You're now on Hole ${team.current_hole}. Send me your score when you finish each hole.
