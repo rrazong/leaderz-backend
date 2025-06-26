@@ -9,9 +9,6 @@ services:
       - NODE_ENV=development
       - PORT=3000
       # Add your environment variables here or use a .env file
-      # - SUPABASE_URL=your_supabase_url
-      # - SUPABASE_ANON_KEY=your_supabase_anon_key
-      # - SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
       # - TWILIO_ACCOUNT_SID=your_twilio_account_sid
       # - TWILIO_AUTH_TOKEN=your_twilio_auth_token
       # - TWILIO_PHONE_NUMBER=whatsapp:+14155238886
