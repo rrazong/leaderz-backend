@@ -33,44 +33,25 @@ router.get('/health', async (req: Request, res: Response) => {
 });
 
 // SSE endpoints for real-time updates
-router.get('/leaderboard/:tournamentNumber/stream', (req: Request, res: Response) => {
+router.get('/sse/:tournamentNumber', (req: Request, res: Response) => {
   const { tournamentNumber } = req.params;
   
   if (!tournamentNumber) {
     return res.status(400).json({ error: 'Tournament number is required' });
   }
   
+  // Set SSE headers
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Cache-Control'
+    'Access-Control-Allow-Origin': req.headers.origin || '*',
+    'Access-Control-Allow-Headers': 'Cache-Control',
+    'Access-Control-Allow-Credentials': 'true'
   });
 
+  // Add client for both leaderboard and chat updates
   sseManager.addClient(res, tournamentNumber, 'leaderboard');
-  
-  // Send initial connection message
-  res.write(`data: ${JSON.stringify({ type: 'connected', tournamentNumber })}\n\n`);
-  
-  return;
-});
-
-router.get('/chat/:tournamentNumber/stream', (req: Request, res: Response) => {
-  const { tournamentNumber } = req.params;
-  
-  if (!tournamentNumber) {
-    return res.status(400).json({ error: 'Tournament number is required' });
-  }
-  
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Cache-Control'
-  });
-
   sseManager.addClient(res, tournamentNumber, 'chat');
   
   // Send initial connection message
