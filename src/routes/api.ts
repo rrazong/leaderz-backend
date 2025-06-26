@@ -50,9 +50,8 @@ router.get('/sse/:tournamentNumber', (req: Request, res: Response) => {
     'Access-Control-Allow-Credentials': 'true'
   });
 
-  // Add client for both leaderboard and chat updates
-  sseManager.addClient(res, tournamentNumber, 'leaderboard');
-  sseManager.addClient(res, tournamentNumber, 'chat');
+  // Add client for unified updates (both leaderboard and chat)
+  sseManager.addClient(res, tournamentNumber, 'unified');
   
   // Send initial connection message
   res.write(`data: ${JSON.stringify({ type: 'connected', tournamentNumber })}\n\n`);
