@@ -219,7 +219,13 @@ export class DatabaseService {
         t.current_hole,
         COUNT(ts.hole_number) as total_holes,
         RANK() OVER (ORDER BY t.total_score ASC) as position,
-        json_object_agg(ts.hole_number, ts.strokes) as scores
+        COALESCE(
+          json_object_agg(
+            ts.hole_number, 
+            ts.strokes
+          ) FILTER (WHERE ts.hole_number IS NOT NULL),
+          '{}'::json
+        ) as scores
       FROM teams t
       LEFT JOIN team_scores ts ON t.id = ts.team_id
       WHERE t.tournament_id = $1 AND t.is_deleted = false
