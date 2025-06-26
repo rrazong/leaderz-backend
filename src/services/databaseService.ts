@@ -167,9 +167,16 @@ export class DatabaseService {
   }
 
   // Chat Message operations
-  static async addChatMessage(tournamentId: string, teamId: string, message: string): Promise<ChatMessage> {
+  static async addChatMessage(tournamentId: string, teamId: string, message: string): Promise<ChatMessage & { team_name: string }> {
     const { rows } = await pool.query(
-      'INSERT INTO chat_messages (tournament_id, team_id, message) VALUES ($1, $2, $3) RETURNING *',
+      `WITH inserted_message AS (
+         INSERT INTO chat_messages (tournament_id, team_id, message) 
+         VALUES ($1, $2, $3) 
+         RETURNING *
+       )
+       SELECT im.*, t.name as team_name
+       FROM inserted_message im
+       JOIN teams t ON im.team_id = t.id`,
       [tournamentId, teamId, message]
     );
     return rows[0];

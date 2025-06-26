@@ -57,6 +57,7 @@ export interface ChatMessage {
   team_id: string;
   message: string;
   created_at: Date;
+  team_name?: string;
 }
 
 export interface LeaderboardEntry {
