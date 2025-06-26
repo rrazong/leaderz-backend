@@ -22,7 +22,10 @@ app.use(helmet());
 // CORS configuration
 const productionOrigins = [
   // Allow custom domain if configured
-  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : [])
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  // Railway frontend domains
+  'https://leaderz-frontend-production.up.railway.app',
+  'https://leaderz-frontend.up.railway.app'
 ];
 
 const developmentOrigins = [
