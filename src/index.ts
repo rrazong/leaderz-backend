@@ -19,46 +19,18 @@ app.set('trust proxy', 1);
 // Security middleware
 app.use(helmet());
 
-// CORS configuration
-const productionOrigins = [
-  // Allow custom domain if configured
-  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
-  // Railway frontend domains
-  'https://leaderz-frontend-production.up.railway.app',
-  'https://leaderz-frontend.up.railway.app'
-];
-
-const developmentOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'https://fe93-174-193-130-229.ngrok-free.app',
-  'https://311b-2603-8001-4f00-a52-8885-d40b-a9fb-bd9d.ngrok-free.app'
-];
-
-const allowedOrigins = process.env.NODE_ENV === 'production' ? productionOrigins : developmentOrigins;
-
-console.log('CORS Configuration:', {
-  environment: process.env.NODE_ENV,
-  allowedOrigins,
-  frontendUrl: process.env.FRONTEND_URL
-});
-
+// CORS configuration - simplified for Railway
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // Allow all origins for now
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Origin', 'Accept']
 }));
+
+console.log('CORS Configuration: Allowing all origins for Railway deployment');
+
+// Handle preflight requests
+app.options('*', cors());
 
 // Rate limiting
 const limiter = rateLimit({
