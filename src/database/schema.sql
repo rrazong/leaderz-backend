@@ -40,8 +40,14 @@ CREATE TABLE tournaments (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create sequence for tournament_number starting at 1000
-CREATE SEQUENCE tournament_number_seq START 1000;
+-- Create sequence for tournament_number starting at 1000 (only if it doesn't exist)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_sequences WHERE schemaname = 'public' AND sequencename = 'tournament_number_seq') THEN
+        CREATE SEQUENCE tournament_number_seq START 1000;
+    END IF;
+END $$;
+
 ALTER TABLE tournaments ALTER COLUMN tournament_number SET DEFAULT nextval('tournament_number_seq');
 
 -- Teams table
@@ -88,15 +94,15 @@ CREATE TABLE chat_messages (
 );
 
 -- Indexes for better performance
-CREATE INDEX idx_teams_tournament_id ON teams(tournament_id);
-CREATE INDEX idx_teams_tournament_name ON teams(tournament_id, name);
-CREATE INDEX idx_players_phone_number ON players(phone_number);
-CREATE INDEX idx_players_team_id ON players(team_id);
-CREATE INDEX idx_team_scores_team_id ON team_scores(team_id);
-CREATE INDEX idx_team_scores_team_hole ON team_scores(team_id, hole_number);
-CREATE INDEX idx_chat_messages_tournament_id ON chat_messages(tournament_id);
-CREATE INDEX idx_chat_messages_created_at ON chat_messages(created_at DESC);
-CREATE INDEX idx_golf_course_holes_course_id ON golf_course_holes(golf_course_id);
+CREATE INDEX IF NOT EXISTS idx_teams_tournament_id ON teams(tournament_id);
+CREATE INDEX IF NOT EXISTS idx_teams_tournament_name ON teams(tournament_id, name);
+CREATE INDEX IF NOT EXISTS idx_players_phone_number ON players(phone_number);
+CREATE INDEX IF NOT EXISTS idx_players_team_id ON players(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_scores_team_id ON team_scores(team_id);
+CREATE INDEX IF NOT EXISTS idx_team_scores_team_hole ON team_scores(team_id, hole_number);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_tournament_id ON chat_messages(tournament_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_golf_course_holes_course_id ON golf_course_holes(golf_course_id);
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -107,7 +113,11 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Triggers to automatically update updated_at
+-- Triggers to automatically update updated_at (drop and recreate to avoid conflicts)
+DROP TRIGGER IF EXISTS update_golf_courses_updated_at ON golf_courses;
+DROP TRIGGER IF EXISTS update_tournaments_updated_at ON tournaments;
+DROP TRIGGER IF EXISTS update_teams_updated_at ON teams;
+
 CREATE TRIGGER update_golf_courses_updated_at BEFORE UPDATE ON golf_courses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_tournaments_updated_at BEFORE UPDATE ON tournaments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON teams FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); 
