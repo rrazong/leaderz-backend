@@ -196,7 +196,14 @@ Leaderboard: ${leaderboardUrl}`;
       await EventService.broadcastTeamScoreUpdate(tournament.tournament_number, team.id);
       const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
       const strokeText = scoreInput.strokes === 1 ? 'stroke' : 'strokes';
-      const response = `Got it. Hole #${lastScoredHole}, ${scoreInput.strokes} ${strokeText}\n\nTo fix your score for Hole #${lastScoredHole}, say "fix"\nOtherwise, let me know what you score for Hole #${team.current_hole + 1}\n\nLeaderboard: ${leaderboardUrl}`;
+      // Get total holes
+      const golfCourseHoles = await DatabaseService.getGolfCourseHoles(tournament.golf_course_id);
+      const totalHoles = golfCourseHoles.length;
+      let response = `Got it. Hole #${lastScoredHole}, ${scoreInput.strokes} ${strokeText}\n\nTo fix your score for Hole #${lastScoredHole}, say "fix"`;
+      if (lastScoredHole < totalHoles) {
+        response += `\nOtherwise, let me know what you score for Hole #${team.current_hole + 1}`;
+      }
+      response += `\n\nLeaderboard: ${leaderboardUrl}`;
       await TwilioService.sendMessage(player.phone_number, response);
       return;
     }
@@ -229,7 +236,7 @@ Leaderboard: ${leaderboardUrl}`;
       if (team.current_hole === totalHoles) {
         // Tournament completed
         const position = await DatabaseService.getTeamPosition(tournament.id, team.id);
-        const place = position === 1 ? '1st' : position === 2 ? '2nd' : position === 3 ? '3rd' : `${position}th`;
+        const place = this.ordinalSuffix(position);
         response += `\n\n🎉 Congratulations! You've completed the tournament!\nFinal Score: ${totalScore}\nCurrent Place: ${place}\n\nLeaderboard: ${leaderboardUrl}`;
       } else {
         response += `\n\nTo fix your score for Hole #${team.current_hole}, say "fix"\nOtherwise, let me know what you score for Hole #${team.current_hole + 1}\n\nLeaderboard: ${leaderboardUrl}`;
@@ -270,5 +277,16 @@ Leaderboard: ${leaderboardUrl}`;
     await TwilioService.sendMessage(phoneNumber, response);
     // Show help message after joining
     await this.sendHelpMessage(phoneNumber, team, tournament);
+  }
+
+  // Helper to get ordinal suffix
+  private static ordinalSuffix(n: number): string {
+    if (n % 100 >= 11 && n % 100 <= 13) return n + 'th';
+    switch (n % 10) {
+      case 1: return n + 'st';
+      case 2: return n + 'nd';
+      case 3: return n + 'rd';
+      default: return n + 'th';
+    }
   }
 }
