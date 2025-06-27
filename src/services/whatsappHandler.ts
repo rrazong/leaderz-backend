@@ -175,6 +175,10 @@ Leaderboard: ${leaderboardUrl}`;
 
     // Check if team is in fix mode
     const isFixMode = await DatabaseService.isTeamInFixMode(team.id);
+
+    console.log('current hole', team.current_hole);
+    console.log('scoreInput', scoreInput);
+    console.log('isFixMode', isFixMode);
     
     if (isFixMode) {
       // Always fix the most recent hole with a score
