@@ -175,10 +175,6 @@ Leaderboard: ${leaderboardUrl}`;
 
     // Check if team is in fix mode
     const isFixMode = await DatabaseService.isTeamInFixMode(team.id);
-
-    console.log('current hole', team.current_hole);
-    console.log('scoreInput', scoreInput);
-    console.log('isFixMode', isFixMode);
     
     if (isFixMode) {
       // Always fix the most recent hole with a score
@@ -205,36 +201,43 @@ Leaderboard: ${leaderboardUrl}`;
       return;
     }
 
-    // Regular score submission - check if this is for the next hole
+    // Not in fix mode
+    // Check if there is already a score for the current hole
     const currentHoleScore = await DatabaseService.getTeamScoreForHole(team.id, team.current_hole);
-    
-    if (currentHoleScore) {
-      // Team already has a score for current hole, this must be for next hole
-      const golfCourseHoles = await DatabaseService.getGolfCourseHoles(tournament.golf_course_id);
-      const nextHole = team.current_hole + 1;
-      
-      if (nextHole > golfCourseHoles.length) {
-        await TwilioService.sendMessage(player.phone_number, 'You have already completed all holes in the tournament!');
-        return;
-      }
-      
-      // Add score for next hole
-      await DatabaseService.addTeamScore(team.id, nextHole, scoreInput.strokes);
-      
+    if (!currentHoleScore) {
+      // No score for current hole: write the score for the current hole
+      await DatabaseService.addTeamScore(team.id, team.current_hole, scoreInput.strokes);
       // Calculate new total score
       const teamScores = await DatabaseService.getTeamScores(team.id);
       const totalScore = teamScores.reduce((sum, score) => sum + score.strokes, 0);
-      
-      // Update team to next hole
+      // Determine next hole
+      const golfCourseHoles = await DatabaseService.getGolfCourseHoles(tournament.golf_course_id);
+      const totalHoles = golfCourseHoles.length;
+      const nextHole = team.current_hole < totalHoles ? team.current_hole + 1 : team.current_hole;
+      // Update team
       await DatabaseService.updateTeamScore(team.id, totalScore, nextHole);
-      
       // Broadcast leaderboard update
       await EventService.broadcastLeaderboardUpdate(tournament.tournament_number);
       await EventService.broadcastTeamScoreUpdate(tournament.tournament_number, team.id);
-      
       const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
       const strokeText = scoreInput.strokes === 1 ? 'stroke' : 'strokes';
-      let response = `Got it. Hole #${nextHole}, ${scoreInput.strokes} ${strokeText}`;
+      let response = `Got it. Hole #${team.current_hole}, ${scoreInput.strokes} ${strokeText}`;
+      // Check for halfway point
+      if (team.current_hole === Math.ceil(totalHoles / 2)) {
+        response += `\n\n🎯 HALFWAY POINT! You've completed ${team.current_hole} of ${totalHoles} holes. Keep up the great work!`;
+      }
+      if (team.current_hole === totalHoles) {
+        // Tournament completed
+        const position = await DatabaseService.getTeamPosition(tournament.id, team.id);
+        const place = position === 1 ? '1st' : position === 2 ? '2nd' : position === 3 ? '3rd' : `${position}th`;
+        response += `\n\n🎉 Congratulations! You've completed the tournament!\nFinal Score: ${totalScore}\nCurrent Place: ${place}\n\nLeaderboard: ${leaderboardUrl}`;
+      } else {
+        response += `\n\nTo fix your score for Hole #${team.current_hole}, say "fix"\nOtherwise, let me know what you score for Hole #${team.current_hole + 1}\n\nLeaderboard: ${leaderboardUrl}`;
+        // Show help message at halfway point
+        if (team.current_hole === Math.ceil(totalHoles / 2)) {
+          response += `\n\n💡 Reminder: Say "help" anytime to see available commands.`;
+        }
+      }
       await TwilioService.sendMessage(player.phone_number, response);
       return;
     }
