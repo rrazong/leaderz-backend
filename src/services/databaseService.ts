@@ -166,6 +166,37 @@ export class DatabaseService {
     return rows;
   }
 
+  static async getTeamScoreForHole(teamId: string, holeNumber: number): Promise<TeamScore | null> {
+    const { rows } = await pool.query(
+      'SELECT * FROM team_scores WHERE team_id = $1 AND hole_number = $2',
+      [teamId, holeNumber]
+    );
+    return rows[0] || null;
+  }
+
+  static async updateTeamScoreForHole(teamId: string, holeNumber: number, strokes: number): Promise<TeamScore> {
+    const { rows } = await pool.query(
+      'UPDATE team_scores SET strokes = $1 WHERE team_id = $2 AND hole_number = $3 RETURNING *',
+      [strokes, teamId, holeNumber]
+    );
+    return rows[0];
+  }
+
+  static async setTeamFixMode(teamId: string, isFixMode: boolean): Promise<void> {
+    await pool.query(
+      'UPDATE teams SET is_fix_mode = $1 WHERE id = $2',
+      [isFixMode, teamId]
+    );
+  }
+
+  static async isTeamInFixMode(teamId: string): Promise<boolean> {
+    const { rows } = await pool.query(
+      'SELECT is_fix_mode FROM teams WHERE id = $1',
+      [teamId]
+    );
+    return rows[0]?.is_fix_mode || false;
+  }
+
   // Chat Message operations
   static async addChatMessage(tournamentId: string, teamId: string, message: string): Promise<ChatMessage & { team_name: string }> {
     const { rows } = await pool.query(

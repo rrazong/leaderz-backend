@@ -75,13 +75,26 @@ What team are you on? Just send me your team name and I'll add you to the leader
       return;
     }
 
+    // Handle fix score request
+    if (messageLower === 'fix') {
+      await this.handleFixScoreRequest(player, team, tournament);
+      return;
+    }
+
     // Check if this is a score submission
     const golfCourseHoles = await DatabaseService.getGolfCourseHoles(tournament.golf_course_id);
     const currentHolePar = golfCourseHoles.find(h => h.hole_number === team.current_hole)?.par;
     
-    console.log('checking if this is a score submission', currentHolePar, message);
     if (currentHolePar && parseScore(message, currentHolePar)) {
       await this.handleScoreSubmission(player, team, tournament, message, currentHolePar);
+      return;
+    }
+
+    // Check for golf terms and provide helpful response
+    const golfTerms = ['birdie', 'eagle', 'albatross', 'bogey', 'par', 'double', 'triple', 'quad', 'ace', 'hole in one', 'snowman'];
+    const messageLowerTrim = message.toLowerCase().trim();
+    if (golfTerms.includes(messageLowerTrim)) {
+      await TwilioService.sendMessage(player.phone_number, `Please enter the number of strokes you took on Hole ${team.current_hole}, not the golf term. For example, if you got a bogey on a par 4, enter "5".`);
       return;
     }
 
@@ -92,11 +105,12 @@ What team are you on? Just send me your team name and I'll add you to the leader
   private static async sendHelpMessage(phoneNumber: string, team: any, tournament: any): Promise<void> {
     const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
     
-    const helpMessage = `Your team '${team.name}' is on Hole ${team.current_hole}.
+    const helpMessage = `'${team.name}' is on Hole ${team.current_hole}.
 
-You can enter your score, like '4' or 'par'
-Or, to fix a previous score, like 'bogey on 9'
-Or, you can type anything else and it will appear on the leaderboard chat
+You can enter your score by saying the number of strokes you took, like "4".
+To fix your score for the current hole, say "fix" (only works before moving to the next hole).
+Or, say "help" to see this message again.
+Anything else you say will appear on the leaderboard chat.
 
 Leaderboard: ${leaderboardUrl}`;
 
@@ -126,6 +140,22 @@ Leaderboard: ${leaderboardUrl}`;
     await TwilioService.sendMessage(player.phone_number, response);
   }
 
+  private static async handleFixScoreRequest(player: any, team: any, tournament: any): Promise<void> {
+    // Check if team has a score for the current hole
+    const currentHoleScore = await DatabaseService.getTeamScoreForHole(team.id, team.current_hole);
+    
+    if (!currentHoleScore) {
+      await TwilioService.sendMessage(player.phone_number, `You haven't entered a score for Hole #${team.current_hole} yet. Please enter your score first.`);
+      return;
+    }
+
+    // Set the team to fix mode
+    await DatabaseService.setTeamFixMode(team.id, true);
+    
+    const response = `Okay, let's fix your score.\nWhat is your score for Hole #${team.current_hole}?`;
+    await TwilioService.sendMessage(player.phone_number, response);
+  }
+
   private static async handleScoreSubmission(player: any, team: any, tournament: any, message: string, par: number): Promise<void> {
     const scoreInput = parseScore(message, par);
     if (!scoreInput) {
@@ -133,7 +163,96 @@ Leaderboard: ${leaderboardUrl}`;
       return;
     }
 
-    // Add the score
+    // Check for score of 0
+    if (scoreInput.strokes === 0) {
+      await TwilioService.sendMessage(player.phone_number, `LOL, can't have zero strokes! Please enter the number of strokes the team took on Hole ${team.current_hole}`);
+      return;
+    }
+
+    // Check if team is in fix mode
+    const isFixMode = await DatabaseService.isTeamInFixMode(team.id);
+    
+    if (isFixMode) {
+      // Update existing score for current hole
+      await DatabaseService.updateTeamScoreForHole(team.id, team.current_hole, scoreInput.strokes);
+      
+      // Recalculate total score
+      const teamScores = await DatabaseService.getTeamScores(team.id);
+      const totalScore = teamScores.reduce((sum, score) => sum + score.strokes, 0);
+      
+      // Update team total score
+      await DatabaseService.updateTeamScore(team.id, totalScore, team.current_hole);
+      
+      // Exit fix mode
+      await DatabaseService.setTeamFixMode(team.id, false);
+      
+      // Broadcast leaderboard update
+      await EventService.broadcastLeaderboardUpdate(tournament.tournament_number);
+      await EventService.broadcastTeamScoreUpdate(tournament.tournament_number, team.id);
+      
+      const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
+      const strokeText = scoreInput.strokes === 1 ? 'stroke' : 'strokes';
+      const response = `Got it. Hole #${team.current_hole}, ${scoreInput.strokes} ${strokeText}\n\nTo fix your score for Hole #${team.current_hole}, say "fix"\nOtherwise, let me know what you score for Hole #${team.current_hole + 1}\n\nLeaderboard: ${leaderboardUrl}`;
+      
+      await TwilioService.sendMessage(player.phone_number, response);
+      return;
+    }
+
+    // Regular score submission - check if this is for the next hole
+    const currentHoleScore = await DatabaseService.getTeamScoreForHole(team.id, team.current_hole);
+    
+    if (currentHoleScore) {
+      // Team already has a score for current hole, this must be for next hole
+      const golfCourseHoles = await DatabaseService.getGolfCourseHoles(tournament.golf_course_id);
+      const nextHole = team.current_hole + 1;
+      
+      if (nextHole > golfCourseHoles.length) {
+        await TwilioService.sendMessage(player.phone_number, 'You have already completed all holes in the tournament!');
+        return;
+      }
+      
+      // Add score for next hole
+      await DatabaseService.addTeamScore(team.id, nextHole, scoreInput.strokes);
+      
+      // Calculate new total score
+      const teamScores = await DatabaseService.getTeamScores(team.id);
+      const totalScore = teamScores.reduce((sum, score) => sum + score.strokes, 0);
+      
+      // Update team to next hole
+      await DatabaseService.updateTeamScore(team.id, totalScore, nextHole);
+      
+      // Broadcast leaderboard update
+      await EventService.broadcastLeaderboardUpdate(tournament.tournament_number);
+      await EventService.broadcastTeamScoreUpdate(tournament.tournament_number, team.id);
+      
+      const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
+      const strokeText = scoreInput.strokes === 1 ? 'stroke' : 'strokes';
+      let response = `Got it. Hole #${nextHole}, ${scoreInput.strokes} ${strokeText}`;
+
+      // Check for halfway point
+      if (nextHole === Math.ceil(golfCourseHoles.length / 2)) {
+        response += `\n\n🎯 HALFWAY POINT! You've completed ${nextHole} of ${golfCourseHoles.length} holes. Keep up the great work!`;
+      }
+
+      if (nextHole === golfCourseHoles.length) {
+        // Tournament completed
+        const position = await DatabaseService.getTeamPosition(tournament.id, team.id);
+        const place = position === 1 ? '1st' : position === 2 ? '2nd' : position === 3 ? '3rd' : `${position}th`;
+        response += `\n\n🎉 Congratulations! You've completed the tournament!\nFinal Score: ${totalScore}\nCurrent Place: ${place}\n\nLeaderboard: ${leaderboardUrl}`;
+      } else {
+        response += `\n\nTo fix your score for Hole #${nextHole}, say "fix"\nOtherwise, let me know what you score for Hole #${nextHole + 1}\n\nLeaderboard: ${leaderboardUrl}`;
+        
+        // Show help message at halfway point
+        if (nextHole === Math.ceil(golfCourseHoles.length / 2)) {
+          response += `\n\n💡 Reminder: Say "help" anytime to see available commands.`;
+        }
+      }
+
+      await TwilioService.sendMessage(player.phone_number, response);
+      return;
+    }
+
+    // First score for current hole
     await DatabaseService.addTeamScore(team.id, team.current_hole, scoreInput.strokes);
 
     // Calculate new total score
@@ -154,7 +273,12 @@ Leaderboard: ${leaderboardUrl}`;
 
     const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
     const strokeText = scoreInput.strokes === 1 ? 'stroke' : 'strokes';
-    let response = `Got it. Hole #${team.current_hole}, ${scoreInput.strokes} ${strokeText} (${scoreInput.description})`;
+    let response = `Got it. Hole #${team.current_hole}, ${scoreInput.strokes} ${strokeText}`;
+
+    // Check for halfway point
+    if (team.current_hole === Math.ceil(totalHoles / 2)) {
+      response += `\n\n🎯 HALFWAY POINT! You've completed ${team.current_hole} of ${totalHoles} holes. Keep up the great work!`;
+    }
 
     if (team.current_hole === totalHoles) {
       // Tournament completed
@@ -162,7 +286,12 @@ Leaderboard: ${leaderboardUrl}`;
       const place = position === 1 ? '1st' : position === 2 ? '2nd' : position === 3 ? '3rd' : `${position}th`;
       response += `\n\n🎉 Congratulations! You've completed the tournament!\nFinal Score: ${totalScore}\nCurrent Place: ${place}\n\nLeaderboard: ${leaderboardUrl}`;
     } else {
-      response += `\n\nLeaderboard: ${leaderboardUrl}`;
+      response += `\n\nTo fix your score for Hole #${team.current_hole}, say "fix"\nOtherwise, let me know what you score for Hole #${team.current_hole + 1}\n\nLeaderboard: ${leaderboardUrl}`;
+      
+      // Show help message at halfway point
+      if (team.current_hole === Math.ceil(totalHoles / 2)) {
+        response += `\n\n💡 Reminder: Say "help" anytime to see available commands.`;
+      }
     }
 
     await TwilioService.sendMessage(player.phone_number, response);
@@ -199,10 +328,13 @@ Leaderboard: ${leaderboardUrl}`;
     const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
     const response = `Welcome to team '${teamName}'! 🏌️‍♂️
 
-You're now on Hole ${team.current_hole}. Send me your score when you finish each hole.
+You're now on Hole #${team.current_hole}. Send me your score when you finish each hole.
 
 Leaderboard: ${leaderboardUrl}`;
 
     await TwilioService.sendMessage(phoneNumber, response);
+    
+    // Show help message after joining
+    await this.sendHelpMessage(phoneNumber, team, tournament);
   }
-} 
+}

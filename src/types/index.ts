@@ -31,6 +31,7 @@ export interface Team {
   current_hole: number;
   total_score: number;
   is_deleted: boolean;
+  is_fix_mode?: boolean;
   created_at: Date;
   updated_at: Date;
 }

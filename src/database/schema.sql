@@ -52,6 +52,7 @@ CREATE TABLE teams (
     current_hole INTEGER NOT NULL DEFAULT 1,
     total_score INTEGER NOT NULL DEFAULT 0,
     is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    is_fix_mode BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(tournament_id, name)
