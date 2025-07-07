@@ -10,6 +10,7 @@ import {
   PaginatedResponse,
   GolfCourseHole
 } from '../types/index';
+import { generateTournamentKey } from '../utils/tournamentKeyGenerator';
 
 export class DatabaseService {
   // Test database connection
@@ -60,13 +61,29 @@ export class DatabaseService {
       'INSERT INTO tournaments (name, golf_course_id) VALUES ($1, $2) RETURNING *',
       [name, golfCourseId]
     );
-    return rows[0];
+    
+    // Generate and update tournament key
+    const tournamentKey = generateTournamentKey(rows[0].tournament_number);
+    const updatedRows = await pool.query(
+      'UPDATE tournaments SET tournament_key = $1 WHERE id = $2 RETURNING *',
+      [tournamentKey, rows[0].id]
+    );
+    
+    return updatedRows.rows[0];
   }
 
   static async getTournamentByNumber(tournamentNumber: number): Promise<Tournament | null> {
     const { rows } = await pool.query(
       'SELECT * FROM tournaments WHERE tournament_number = $1',
       [tournamentNumber]
+    );
+    return rows[0] || null;
+  }
+
+  static async getTournamentByKey(tournamentKey: string): Promise<Tournament | null> {
+    const { rows } = await pool.query(
+      'SELECT * FROM tournaments WHERE tournament_key = $1',
+      [tournamentKey]
     );
     return rows[0] || null;
   }

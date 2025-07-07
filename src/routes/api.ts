@@ -33,11 +33,11 @@ router.get('/health', async (req: Request, res: Response) => {
 });
 
 // SSE endpoints for real-time updates
-router.get('/sse/:tournamentNumber', (req: Request, res: Response) => {
-  const { tournamentNumber } = req.params;
+router.get('/sse/:tournamentKey', (req: Request, res: Response) => {
+  const { tournamentKey } = req.params;
   
-  if (!tournamentNumber) {
-    return res.status(400).json({ error: 'Tournament number is required' });
+  if (!tournamentKey) {
+    return res.status(400).json({ error: 'Tournament key is required' });
   }
   
   // Set SSE headers
@@ -51,24 +51,24 @@ router.get('/sse/:tournamentNumber', (req: Request, res: Response) => {
   });
 
   // Add client for unified updates (both leaderboard and chat)
-  sseManager.addClient(res, tournamentNumber, 'unified');
+  sseManager.addClient(res, tournamentKey, 'unified');
   
   // Send initial connection message
-  res.write(`data: ${JSON.stringify({ type: 'connected', tournamentNumber })}\n\n`);
+  res.write(`data: ${JSON.stringify({ type: 'connected', tournamentKey })}\n\n`);
   
   return;
 });
 
 // Get leaderboard for a tournament
-router.get('/leaderboard/:tournamentNumber', async (req: Request, res: Response) => {
+router.get('/leaderboard/:tournamentKey', async (req: Request, res: Response) => {
   try {
-    const { tournamentNumber } = req.params;
+    const { tournamentKey } = req.params;
     
-    if (!tournamentNumber) {
-      return res.status(400).json({ error: 'Tournament number is required' });
+    if (!tournamentKey) {
+      return res.status(400).json({ error: 'Tournament key is required' });
     }
     
-    const tournament = await DatabaseService.getTournamentByNumber(parseInt(tournamentNumber));
+    const tournament = await DatabaseService.getTournamentByKey(tournamentKey);
     if (!tournament) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
@@ -86,7 +86,7 @@ router.get('/leaderboard/:tournamentNumber', async (req: Request, res: Response)
       tournament: {
         id: tournament.id,
         name: tournament.name,
-        tournament_number: tournament.tournament_number,
+        tournament_key: tournament.tournament_key,
         status: tournament.status
       },
       leaderboard,
@@ -99,7 +99,7 @@ router.get('/leaderboard/:tournamentNumber', async (req: Request, res: Response)
 });
 
 // Get paginated chat messages for a tournament
-router.get('/chat/:tournamentNumber', [
+router.get('/chat/:tournamentKey', [
   query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
   query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100')
 ], async (req: Request, res: Response) => {
@@ -109,15 +109,15 @@ router.get('/chat/:tournamentNumber', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { tournamentNumber } = req.params;
-    if (!tournamentNumber) {
-      return res.status(400).json({ error: 'Tournament number is required' });
+    const { tournamentKey } = req.params;
+    if (!tournamentKey) {
+      return res.status(400).json({ error: 'Tournament key is required' });
     }
     
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     
-    const tournament = await DatabaseService.getTournamentByNumber(parseInt(tournamentNumber));
+    const tournament = await DatabaseService.getTournamentByKey(tournamentKey);
     if (!tournament) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
@@ -132,7 +132,7 @@ router.get('/chat/:tournamentNumber', [
 });
 
 // Add chat message for a tournament
-router.post('/chat/:tournamentNumber', [
+router.post('/chat/:tournamentKey', [
   body('teamId').notEmpty().withMessage('Team ID is required'),
   body('message').notEmpty().withMessage('Message is required')
 ], async (req: Request, res: Response) => {
@@ -142,14 +142,14 @@ router.post('/chat/:tournamentNumber', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { tournamentNumber } = req.params;
+    const { tournamentKey } = req.params;
     const { teamId, message } = req.body;
     
-    if (!tournamentNumber) {
-      return res.status(400).json({ error: 'Tournament number is required' });
+    if (!tournamentKey) {
+      return res.status(400).json({ error: 'Tournament key is required' });
     }
     
-    const tournament = await DatabaseService.getTournamentByNumber(parseInt(tournamentNumber));
+    const tournament = await DatabaseService.getTournamentByKey(tournamentKey);
     if (!tournament) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
@@ -157,7 +157,9 @@ router.post('/chat/:tournamentNumber', [
     const chatMessage = await DatabaseService.addChatMessage(tournament.id, teamId, message);
     
     // Broadcast chat update
-    await EventService.broadcastChatUpdate(tournament.tournament_number, chatMessage);
+    if (tournament.tournament_key) {
+      await EventService.broadcastChatUpdate(tournament.tournament_key, chatMessage);
+    }
     
     return res.status(201).json(chatMessage);
   } catch (error) {
@@ -218,27 +220,31 @@ router.post('/tournaments', [
     
     const tournament = await DatabaseService.createTournament(name, golfCourseId);
     
-    return res.status(201).json(tournament);
+    // Return tournament without internal tournament_number
+    const { tournament_number, ...tournamentResponse } = tournament;
+    return res.status(201).json(tournamentResponse);
   } catch (error) {
     console.error('Error creating tournament:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-router.get('/tournaments/:tournamentNumber', async (req: Request, res: Response) => {
+router.get('/tournaments/:tournamentKey', async (req: Request, res: Response) => {
   try {
-    const { tournamentNumber } = req.params;
-    if (!tournamentNumber) {
-      return res.status(400).json({ error: 'Tournament number is required' });
+    const { tournamentKey } = req.params;
+    if (!tournamentKey) {
+      return res.status(400).json({ error: 'Tournament key is required' });
     }
     
-    const tournament = await DatabaseService.getTournamentByNumber(parseInt(tournamentNumber));
+    const tournament = await DatabaseService.getTournamentByKey(tournamentKey);
     
     if (!tournament) {
       return res.status(404).json({ error: 'Tournament not found' });
     }
     
-    return res.json(tournament);
+    // Return tournament without internal tournament_number
+    const { tournament_number, ...tournamentResponse } = tournament;
+    return res.json(tournamentResponse);
   } catch (error) {
     console.error('Error getting tournament:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -264,7 +270,9 @@ router.put('/tournaments/:id', [
     
     const tournament = await DatabaseService.updateTournament(id, updates);
     
-    return res.json(tournament);
+    // Return tournament without internal tournament_number
+    const { tournament_number, ...tournamentResponse } = tournament;
+    return res.json(tournamentResponse);
   } catch (error) {
     console.error('Error updating tournament:', error);
     return res.status(500).json({ error: 'Internal server error' });

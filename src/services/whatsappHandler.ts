@@ -103,7 +103,7 @@ What team are you on? Just send me your team name and I'll add you to the leader
   }
 
   private static async sendHelpMessage(phoneNumber: string, team: any, tournament: any): Promise<void> {
-    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
+    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_key}`;
     
     const helpMessage = `'${team.name}' is on Hole ${team.current_hole}.
 
@@ -192,9 +192,9 @@ Leaderboard: ${leaderboardUrl}`;
       await DatabaseService.updateTeamScore(team.id, totalScore, team.current_hole);
       await DatabaseService.setTeamFixMode(team.id, false);
       // Broadcast leaderboard update
-      await EventService.broadcastLeaderboardUpdate(tournament.tournament_number);
-      await EventService.broadcastTeamScoreUpdate(tournament.tournament_number, team.id);
-      const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
+      await EventService.broadcastLeaderboardUpdate(tournament.tournament_key);
+      await EventService.broadcastTeamScoreUpdate(tournament.tournament_key, team.id);
+      const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_key}`;
       const strokeText = scoreInput.strokes === 1 ? 'stroke' : 'strokes';
       // Get total holes
       const golfCourseHoles = await DatabaseService.getGolfCourseHoles(tournament.golf_course_id);
@@ -224,9 +224,9 @@ Leaderboard: ${leaderboardUrl}`;
       // Update team
       await DatabaseService.updateTeamScore(team.id, totalScore, nextHole);
       // Broadcast leaderboard update
-      await EventService.broadcastLeaderboardUpdate(tournament.tournament_number);
-      await EventService.broadcastTeamScoreUpdate(tournament.tournament_number, team.id);
-      const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
+      await EventService.broadcastLeaderboardUpdate(tournament.tournament_key);
+      await EventService.broadcastTeamScoreUpdate(tournament.tournament_key, team.id);
+      const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_key}`;
       const strokeText = scoreInput.strokes === 1 ? 'stroke' : 'strokes';
       let response = `Got it. Hole #${team.current_hole}, ${scoreInput.strokes} ${strokeText}`;
       // Check for halfway point
@@ -254,8 +254,8 @@ Leaderboard: ${leaderboardUrl}`;
     // Add chat message to database
     const chatMessage = await DatabaseService.addChatMessage(tournament.id, team.id, message);
     // Broadcast chat update
-    await EventService.broadcastChatUpdate(tournament.tournament_number, chatMessage);
-    const response = `Message sent to leaderboard chat! 📱\n\nLeaderboard: ${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
+    await EventService.broadcastChatUpdate(tournament.tournament_key, chatMessage);
+    const response = `Message sent to leaderboard chat! 📱\n\nLeaderboard: ${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_key}`;
     await TwilioService.sendMessage(player.phone_number, response);
   }
 
@@ -272,7 +272,7 @@ Leaderboard: ${leaderboardUrl}`;
     }
     // Add player to team
     await DatabaseService.addPlayerToTeam(team.id, phoneNumber);
-    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_number}`;
+    const leaderboardUrl = `${this.LEADERBOARD_BASE_URL}/tournament/${tournament.tournament_key}`;
     const response = `Welcome to team '${teamName}'! 🏌️‍♂️\n\nYou're now on Hole #${team.current_hole}. Send me your score when you finish each hole.\n\nLeaderboard: ${leaderboardUrl}`;
     await TwilioService.sendMessage(phoneNumber, response);
     // Show help message after joining

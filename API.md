@@ -67,12 +67,12 @@ Manually add a player to a team.
 ### Leaderboard & Chat
 
 #### Get Leaderboard
-**GET** `/api/leaderboard/:tournamentNumber`
+**GET** `/api/leaderboard/:tournamentKey`
 
 Get the current leaderboard for a tournament.
 
 **Parameters:**
-- `tournamentNumber` (number) - Tournament number (e.g., 1000, 1001)
+- `tournamentKey` (string) - Tournament key (e.g., "2G2A", "2H3A")
 
 **Response:**
 ```json
@@ -80,7 +80,7 @@ Get the current leaderboard for a tournament.
   "tournament": {
     "id": "660e8400-e29b-41d4-a716-446655440001",
     "name": "SD Summer Golf Invitational 2025",
-    "tournament_number": 1000,
+    "tournament_key": "2G2A",
     "status": "active"
   },
   "leaderboard": [
@@ -123,12 +123,12 @@ Get the current leaderboard for a tournament.
 ```
 
 #### Get Chat Messages
-**GET** `/api/chat/:tournamentNumber`
+**GET** `/api/chat/:tournamentKey`
 
 Get paginated chat messages for a tournament.
 
 **Parameters:**
-- `tournamentNumber` (number) - Tournament number
+- `tournamentKey` (string) - Tournament key
 - `page` (number, optional) - Page number (default: 1)
 - `limit` (number, optional) - Messages per page (default: 20, max: 100)
 
@@ -154,22 +154,49 @@ Get paginated chat messages for a tournament.
 }
 ```
 
+#### Add Chat Message
+**POST** `/api/chat/:tournamentKey`
+
+Add a new chat message to a tournament.
+
+**Parameters:**
+- `tournamentKey` (string) - Tournament key
+
+**Request Body:**
+```json
+{
+  "teamId": "880e8400-e29b-41d4-a716-446655440003",
+  "message": "Great round everyone!"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "770e8400-e29b-41d4-a716-446655440002",
+  "tournament_id": "660e8400-e29b-41d4-a716-446655440001",
+  "team_id": "880e8400-e29b-41d4-a716-446655440003",
+  "message": "Great round everyone!",
+  "created_at": "2025-01-15T10:30:00.000Z",
+  "team_name": "The Noobies"
+}
+```
+
 #### Server-Sent Events
-**GET** `/api/events/:tournamentNumber`
+**GET** `/api/sse/:tournamentKey`
 
 Real-time updates for tournament events.
 
 **Parameters:**
-- `tournamentNumber` (number) - Tournament number
+- `tournamentKey` (string) - Tournament key
 
 **Response:** Server-Sent Events stream
 
 **Event Types:**
 - `connected` - Initial connection established
-- `ping` - Keep-alive ping (every 30 seconds)
-- `score_update` - New score submitted
-- `chat_message` - New chat message
-- `team_join` - New team joined
+- `leaderboard_update` - Leaderboard data updated
+- `chat_update` - New chat message
+- `team_score_update` - Team score updated
 
 ### Golf Courses
 
@@ -226,7 +253,7 @@ Create a new tournament.
 ```json
 {
   "id": "aa0e8400-e29b-41d4-a716-446655440005",
-  "tournament_number": 1000,
+  "tournament_key": "2G2A",
   "name": "Spring Championship 2025",
   "golf_course_id": "990e8400-e29b-41d4-a716-446655440004",
   "status": "active",
@@ -236,18 +263,18 @@ Create a new tournament.
 ```
 
 #### Get Tournament
-**GET** `/api/tournaments/:tournamentNumber`
+**GET** `/api/tournaments/:tournamentKey`
 
-Get tournament details by tournament number.
+Get tournament details by tournament key.
 
 **Parameters:**
-- `tournamentNumber` (number) - Tournament number
+- `tournamentKey` (string) - Tournament key
 
 **Response:**
 ```json
 {
   "id": "aa0e8400-e29b-41d4-a716-446655440005",
-  "tournament_number": 1000,
+  "tournament_key": "2G2A",
   "name": "Spring Championship 2025",
   "golf_course_id": "990e8400-e29b-41d4-a716-446655440004",
   "status": "active",
@@ -276,7 +303,7 @@ Update tournament details.
 ```json
 {
   "id": "aa0e8400-e29b-41d4-a716-446655440005",
-  "tournament_number": 1000,
+  "tournament_key": "2G2A",
   "name": "Updated Tournament Name",
   "golf_course_id": "990e8400-e29b-41d4-a716-446655440004",
   "status": "completed",
@@ -333,9 +360,19 @@ All endpoints may return the following error responses:
 
 API endpoints are rate-limited to 100 requests per 15 minutes per IP address.
 
-## Tournament Numbers
+## Tournament Keys
 
-Tournament numbers are auto-incrementing integers starting from 1000. Each new tournament gets the next available number in sequence.
+Tournament keys are alphanumeric strings that provide a user-friendly way to identify tournaments. They are generated using a custom character set and are reversible.
+
+### Character Set
+Tournament keys use the character set: `"23478GLFZHARD"`
+
+Characters were chosen to reduce ambiguity, "O" versus "0", "I" versus "1", and "S" versus "5".
+
+### Examples
+- Tournament #1000 → "2G2A"
+- Tournament #1234 → "2H3A"
+- Tournament #9999 → "8F44"
 
 ## WhatsApp Message Formats
 

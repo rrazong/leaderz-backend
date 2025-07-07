@@ -17,6 +17,18 @@ export interface GolfCourseHole {
 export interface Tournament {
   id: string;
   tournament_number: number;
+  tournament_key?: string;
+  name: string;
+  golf_course_id: string;
+  status: 'active' | 'completed' | 'cancelled';
+  created_at: Date;
+  updated_at: Date;
+}
+
+// External-facing tournament interface (without internal tournament_number)
+export interface TournamentResponse {
+  id: string;
+  tournament_key?: string;
   name: string;
   golf_course_id: string;
   status: 'active' | 'completed' | 'cancelled';
@@ -53,6 +65,16 @@ export interface TeamScore {
 }
 
 export interface ChatMessage {
+  id: string;
+  tournament_id: string;
+  team_id: string;
+  message: string;
+  created_at: Date;
+  team_name?: string;
+}
+
+// External-facing chat message interface (without internal tournament_number)
+export interface ChatMessageResponse {
   id: string;
   tournament_id: string;
   team_id: string;

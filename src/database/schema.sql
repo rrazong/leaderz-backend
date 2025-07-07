@@ -33,6 +33,7 @@ CREATE TABLE golf_course_holes (
 CREATE TABLE tournaments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tournament_number INTEGER UNIQUE NOT NULL,
+    tournament_key VARCHAR(20) UNIQUE,
     name VARCHAR(255) NOT NULL,
     golf_course_id UUID NOT NULL REFERENCES golf_courses(id) ON DELETE CASCADE,
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'cancelled')),

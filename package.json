@@ -14,6 +14,7 @@
     "test-setup": "tsx src/test-setup.ts",
     "db:schema": "tsx scripts/run-schema.ts",
     "db:init": "tsx scripts/run-init-data.ts",
+    "db:migrate": "tsx scripts/migrate-runner.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix"
   },

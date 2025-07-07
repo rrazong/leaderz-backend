@@ -102,13 +102,12 @@ npm start
 - `POST /twilio/webhook` - Incoming WhatsApp messages
 
 ### Leaderboard & Chat
-- `GET /api/leaderboard/:tournamentNumber` - Get tournament leaderboard
-- `GET /api/chat/:tournamentNumber` - Get paginated chat messages
-- `POST /api/chat/:tournamentNumber` - Add a new chat message
+- `GET /api/leaderboard/:tournamentKey` - Get tournament leaderboard
+- `GET /api/chat/:tournamentKey` - Get paginated chat messages
+- `POST /api/chat/:tournamentKey` - Add a new chat message
 
 ### Real-time Updates (SSE)
-- `GET /api/leaderboard/:tournamentNumber/stream` - Server-Sent Events for real-time leaderboard updates
-- `GET /api/chat/:tournamentNumber/stream` - Server-Sent Events for real-time chat updates
+- `GET /api/sse/:tournamentKey` - Server-Sent Events for real-time updates (leaderboard and chat)
 
 ### Golf Courses
 - `POST /api/golf-courses` - Create a new golf course
@@ -116,7 +115,7 @@ npm start
 
 ### Tournaments
 - `POST /api/tournaments` - Create a new tournament
-- `GET /api/tournaments/:tournamentNumber` - Get tournament by tournament number
+- `GET /api/tournaments/:tournamentKey` - Get tournament by tournament key
 - `PUT /api/tournaments/:id` - Update tournament
 - `DELETE /api/tournaments/:id` - Delete tournament
 
@@ -143,11 +142,96 @@ Any other message is treated as a chat message and appears on the leaderboard.
 ### Tables
 - `golf_courses` - Golf course information
 - `golf_course_holes` - Hole configurations for each course
-- `tournaments` - Tournament details (with auto-incrementing tournament numbers starting at 1000)
+- `tournaments` - Tournament details (tournament name, golf course, and status)
 - `teams` - Team information and current status
 - `players` - Player information linked to teams
 - `team_scores` - Individual hole scores for teams
 - `chat_messages` - Team chat messages
+
+## Tournament Keys
+
+Tournament keys are alphanumeric strings that provide a user-friendly way to identify tournaments compared to numeric tournament numbers. They are generated using a custom character set and are reversible.
+
+### Character Set
+
+Tournament keys use the character set: `"23478GLFZHARD"`
+
+This set was chosen to:
+- Avoid confusing characters (0/O, 1/I, 6/G, 9/g)
+- Include golf-related letters (G, L, F, Z, H, A, R, D)
+- Provide a good balance of length and readability
+
+### Generation Algorithm
+
+Tournament keys are generated using a custom character set approach:
+
+1. Convert the tournament number to base-13 (length of character set)
+2. Map each digit to the corresponding character in the set
+3. Pad with leading '2' characters to ensure minimum length of 4
+
+### Examples
+
+- Tournament #1000 → "2GRD"
+- Tournament #1234 → "2F7D" 
+- Tournament #9999 → "8F44"
+
+### Database Schema
+
+The `tournaments` table includes a `tournament_key` column:
+
+```sql
+ALTER TABLE tournaments ADD COLUMN tournament_key VARCHAR(20) UNIQUE;
+```
+
+### Migration
+
+To migrate existing tournaments to use tournament keys:
+
+1. Run the database schema update:
+   ```bash
+   npm run db:schema
+   ```
+
+2. Run the migration script:
+   ```bash
+   npm run db:migrate
+   ```
+
+This will run all pending migrations, including generating tournament keys for all existing tournaments that don't have one.
+
+### Frontend Integration
+
+The frontend uses tournament keys in URLs:
+
+- Old: `/tournament/1000`
+- New: `/tournament/2GRD`
+
+### Utility Functions
+
+```typescript
+import { generateTournamentKey, tournamentKeyToNumber } from '../utils/tournamentKeyGenerator';
+
+// Generate key from number
+const key = generateTournamentKey(1000); // "2GRD"
+
+// Convert key back to number
+const number = tournamentKeyToNumber("2GRD"); // 1000
+```
+
+### Benefits
+
+1. **User-friendly**: Easier to share and remember than numeric IDs
+2. **Golf-themed**: Uses golf-related letters in the character set
+3. **Reversible**: Can convert back to tournament numbers if needed
+4. **Collision-free**: Each tournament number maps to a unique key
+5. **Consistent length**: Minimum 4 characters for readability
+
+### Backward Compatibility
+
+The system maintains backward compatibility by:
+- Keeping tournament numbers in the database (internal use only)
+- Supporting tournament keys in all external APIs
+- Providing migration tools for existing data
 
 ## Environment Variables
 
@@ -211,6 +295,7 @@ Set `NODE_ENV=production` and configure all required environment variables.
 
 The backend uses Server-Sent Events (SSE) for real-time updates:
 
+- **Unified updates**: Single SSE endpoint for both leaderboard and chat updates
 - **Leaderboard updates**: Sent when scores are submitted via WhatsApp
 - **Chat updates**: Sent when new messages are added via WhatsApp or API
 - **Connection management**: Automatic cleanup of disconnected clients
@@ -218,18 +303,16 @@ The backend uses Server-Sent Events (SSE) for real-time updates:
 ### Frontend Integration
 
 ```javascript
-// Leaderboard updates
-const eventSource = new EventSource('/api/leaderboard/1000/stream');
+// Unified real-time updates
+const eventSource = new EventSource('/api/sse/2GRD');
 eventSource.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  // Update your leaderboard UI
-};
-
-// Chat updates
-const chatEventSource = new EventSource('/api/chat/1000/stream');
-chatEventSource.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  // Update your chat UI
+  
+  if (data.type === 'leaderboard_update') {
+    // Update your leaderboard UI
+  } else if (data.type === 'chat_update') {
+    // Update your chat UI
+  }
 };
 ```
 

@@ -3,9 +3,10 @@ import { DatabaseService } from './databaseService';
 
 export class EventService {
   // Broadcast leaderboard updates
-  static async broadcastLeaderboardUpdate(tournamentNumber: number) {
+  static async broadcastLeaderboardUpdate(tournamentKey: string) {
     try {
-      const tournament = await DatabaseService.getTournamentByNumber(tournamentNumber);
+      const tournament = await DatabaseService.getTournamentByKey(tournamentKey);
+      
       if (!tournament) return;
 
       const leaderboard = await DatabaseService.getLeaderboard(tournament.id);
@@ -22,41 +23,43 @@ export class EventService {
         tournament: {
           id: tournament.id,
           name: tournament.name,
-          tournament_number: tournament.tournament_number,
+          tournament_key: tournament.tournament_key,
           status: tournament.status
         },
         leaderboard,
         pars
       };
 
-      sseManager.broadcast(tournamentNumber.toString(), 'leaderboard', data);
+      sseManager.broadcast(tournamentKey, 'leaderboard', data);
     } catch (error) {
       console.error('Error broadcasting leaderboard update:', error);
     }
   }
 
   // Broadcast chat message updates
-  static async broadcastChatUpdate(tournamentNumber: number, newMessage?: any) {
+  static async broadcastChatUpdate(tournamentKey: string, newMessage?: any) {
     try {
-      const tournament = await DatabaseService.getTournamentByNumber(tournamentNumber);
+      const tournament = await DatabaseService.getTournamentByKey(tournamentKey);
+      
       if (!tournament) return;
 
       const data = {
         type: 'chat_update',
-        tournament_number: tournamentNumber,
+        tournament_key: tournament.tournament_key,
         newMessage
       };
 
-      sseManager.broadcast(tournamentNumber.toString(), 'chat', data);
+      sseManager.broadcast(tournamentKey, 'chat', data);
     } catch (error) {
       console.error('Error broadcasting chat update:', error);
     }
   }
 
   // Broadcast team score update
-  static async broadcastTeamScoreUpdate(tournamentNumber: number, teamId: string) {
+  static async broadcastTeamScoreUpdate(tournamentKey: string, teamId: string) {
     try {
-      const tournament = await DatabaseService.getTournamentByNumber(tournamentNumber);
+      const tournament = await DatabaseService.getTournamentByKey(tournamentKey);
+      
       if (!tournament) return;
 
       const team = await DatabaseService.getTeamById(teamId);
@@ -64,7 +67,7 @@ export class EventService {
 
       const data = {
         type: 'team_score_update',
-        tournament_number: tournamentNumber,
+        tournament_key: tournament.tournament_key,
         team: {
           id: team.id,
           name: team.name,
@@ -73,7 +76,7 @@ export class EventService {
         }
       };
 
-      sseManager.broadcast(tournamentNumber.toString(), 'leaderboard', data);
+      sseManager.broadcast(tournamentKey, 'leaderboard', data);
     } catch (error) {
       console.error('Error broadcasting team score update:', error);
     }
